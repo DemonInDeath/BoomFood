@@ -72,7 +72,6 @@
     { name: "Suši rinkinys", price: 12.9 },
     { name: "Šaltibarščiai", price: 4.8 }
   ];
-  const stepNames = ["Užsakymas priimtas", "Ruošiamas", "Kurjeris kelyje", "Pristatyta"];
   let cart = [];
   let xp = 0;
 
@@ -91,12 +90,7 @@
     document.getElementById("order").disabled = false;
   }
 
-  // 4. Užsakymo eiga
-  function showStep(n) {
-    document.getElementById("steps").innerHTML = stepNames.map((s, i) =>
-      `<li class="${i <= n ? "done" : ""} ${i === n ? "now" : ""}">${s}</li>`).join("");
-  }
-  showStep(-1);
+
 
   document.getElementById("order").onclick = function () {
     const count = cart.length;
@@ -110,13 +104,7 @@
     }, i * 4000));
   };
 
-  // 5. XP ir lygiai (100 XP = 1 lygis)
-  function addXP(n) {
-    xp += n;
-    document.getElementById("xp").textContent = xp % 100;
-    document.getElementById("lvl").textContent = Math.floor(xp / 100) + 1;
-    document.getElementById("xpfill").style.width = (xp % 100) + "%";
-  }
+  
 </script>
 </body>
 </html>
