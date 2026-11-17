@@ -516,6 +516,37 @@
     .history-top { align-items: flex-start; }
   }
 
+
+  .extra-view { margin-top: 28px; }
+  .muted-note { margin: 6px 0 0; color: var(--muted); font-size: .9rem; }
+  .rating-summary { color: #b7791f; font-weight: 800; white-space: nowrap; }
+  .review-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .review-card { padding: 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .review-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .stars { color: #e5a000; letter-spacing: 2px; white-space: nowrap; }
+  .review-card p { line-height: 1.55; }
+  .review-author { color: var(--muted); font-size: .8rem; }
+  .review-form { margin: 18px 0 22px; padding: 20px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .review-form h3 { margin: 0 0 12px; }
+  .review-fields { display: grid; grid-template-columns: minmax(160px, .7fr) minmax(180px, 1fr); gap: 12px; }
+  .review-form label { display: block; margin-bottom: 5px; font-size: .85rem; font-weight: 700; }
+  .review-form input, .review-form select, .review-form textarea { width: 100%; padding: 11px 12px; border: 1px solid #cbd9d0; border-radius: 10px; background: #fff; color: var(--ink); font: inherit; }
+  .review-form textarea { min-height: 82px; resize: vertical; }
+  .review-form .review-submit { margin-top: 12px; padding: 11px 18px; border: 0; border-radius: 10px; background: var(--green); color: #fff; font: inherit; font-weight: 750; cursor: pointer; }
+  .review-form .review-submit:hover { background: var(--green-hover); }
+  .review-form .form-message { min-height: 1.3em; margin: 8px 0 0; color: var(--green); font-size: .88rem; }
+  .avatar-button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+  .avatar-button:focus-visible { outline: 3px solid #10a771; outline-offset: 3px; }
+  .user-avatar { width: 38px; height: 38px; display: block; border-radius: 50%; object-fit: cover; border: 2px solid #d5f4e3; transition: box-shadow .15s ease, transform .15s ease; }
+  .avatar-button:hover .user-avatar { box-shadow: 0 0 0 3px #d5f4e3; transform: scale(1.04); }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  @media (max-width: 560px) { .site-header .wrap { min-height: 68px; } .user-avatar { width: 32px; height: 32px; } .header-right { gap: 8px; } .review-fields { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) {
+    .tabs { overflow-x: auto; }
+    .tab { flex: 0 0 auto; }
+    .review-grid { grid-template-columns: 1fr; }
+  }
+
 </style>
 <style>
   /* Viena įterpta nuotrauka naudojama viršuje ir meniu kortelėse. */
@@ -527,12 +558,17 @@
 <header class="site-header">
   <div class="wrap">
     <p class="brand"><span class="brand-icon" aria-hidden="true"></span>Užsakymų žaidimas</p>
-    <div class="level">
+    <div class="header-right">
+      <button class="avatar-button" id="profileButton" type="button" aria-label="Atidaryti profilį" aria-controls="profileView" title="Profilis">
+        <img class="user-avatar" src="https://ui-avatars.com/api/?name=B&background=087a54&color=ffffff&rounded=true&bold=true&size=96" alt="" aria-hidden="true">
+      </button>
+      <div class="level">
       <div class="level-label">
         <strong>Lygis <span id="lvl">1</span></strong>
         <span><span id="xp">0</span> / 100 XP</span>
       </div>
       <div class="bar" aria-hidden="true"><div id="xpfill"></div></div>
+      </div>
     </div>
   </div>
 </header>
@@ -548,8 +584,10 @@
   </section>
 
   <nav class="tabs" aria-label="Pagrindinė navigacija">
-    <button class="tab" id="menuTab" type="button" aria-selected="true">Meniu</button>
-    <button class="tab" id="historyTab" type="button" aria-selected="false">Užsakymų istorija</button>
+    <button class="tab" data-tab="menu" type="button" aria-selected="true">Meniu</button>
+    <button class="tab" data-tab="history" type="button" aria-selected="false">Užsakymų istorija</button>
+    <button class="tab" data-tab="reviews" type="button" aria-selected="false">Atsiliepimai</button>
+    <button class="tab" data-tab="restaurants" type="button" aria-selected="false">Restoranai</button>
   </nav>
 
   <div id="menuView">
@@ -580,6 +618,72 @@
       <span id="historyCount" class="history-date">0 užsakymų</span>
     </div>
     <div id="historyList" class="history-list" aria-live="polite"></div>
+  </section>
+
+  <section id="reviewsView" class="extra-view" aria-labelledby="reviewsTitle" hidden>
+    <div class="history-heading">
+      <div>
+        <h2 id="reviewsTitle">Klientų atsiliepimai</h2>
+        <p class="muted-note">Palik savo įvertinimą – jį galės pateikti kiekvienas svetainės lankytojas.</p>
+      </div>
+      <span class="rating-summary" id="ratingSummary">★ 4,8 / 5</span>
+    </div>
+    <form class="review-form" id="reviewForm">
+      <h3>Palik atsiliepimą</h3>
+      <div class="review-fields">
+        <div>
+          <label for="reviewName">Vardas</label>
+          <input id="reviewName" name="name" maxlength="40" placeholder="Tavo vardas" required>
+        </div>
+        <div>
+          <label for="reviewRating">Įvertinimas</label>
+          <select id="reviewRating" name="rating" required>
+            <option value="5">★★★★★ – Puikiai</option>
+            <option value="4">★★★★☆ – Gerai</option>
+            <option value="3">★★★☆☆ – Vidutiniškai</option>
+            <option value="2">★★☆☆☆ – Prastai</option>
+            <option value="1">★☆☆☆☆ – Blogai</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <label for="reviewText">Komentaras</label>
+        <textarea id="reviewText" name="comment" maxlength="500" placeholder="Pasidalink savo nuomone..." required></textarea>
+      </div>
+      <button class="review-submit" type="submit">Paskelbti atsiliepimą</button>
+      <p class="form-message" id="reviewMessage" role="status"></p>
+    </form>
+    <div class="review-grid" id="reviewList">
+      <article class="review-card">
+        <div class="review-top"><strong>Green Bite</strong><span class="stars">★★★★★</span></div>
+        <p>„Atkeliavo greitai, o maistas buvo tikrai skanus. Užsisakyčiau dar kartą!“</p>
+        <span class="review-author">Mantas · prieš 2 val.</span>
+      </article>
+      <article class="review-card">
+        <div class="review-top"><strong>Burger House</strong><span class="stars">★★★★★</span></div>
+        <p>„Didelė porcija, geras skonis ir viskas tvarkingai supakuota.“</p>
+        <span class="review-author">Ieva · vakar</span>
+      </article>
+      <article class="review-card">
+        <div class="review-top"><strong>Sushi Point</strong><span class="stars">★★★★☆</span></div>
+        <p>„Sušiai švieži, pristatymas sklandus. Norėtųsi tik kiek didesnės porcijos.“</p>
+        <span class="review-author">Tomas · prieš 2 d.</span>
+      </article>
+      <article class="review-card">
+        <div class="review-top"><strong>Pizza Corner</strong><span class="stars">★★★★★</span></div>
+        <p>„Traški picos plutelė ir daug sūrio. Puikus pasirinkimas vakarui.“</p>
+        <span class="review-author">Gabija · prieš 3 d.</span>
+      </article>
+    </div>
+  </section>
+
+  <section id="restaurantsView" class="extra-view" aria-labelledby="restaurantsTitle" hidden>
+    <h2 id="restaurantsTitle">Restoranai</h2>
+    <div class="empty-history">Restoranų skiltis bus papildyta – jos turinį paruoš kitas komandos narys.</div>
+  </section>
+
+  <section id="profileView" class="extra-view" aria-labelledby="profileTitle" hidden>
+    <h2 id="profileTitle">Profilis</h2>
   </section>
 </main>
 
@@ -645,17 +749,78 @@
   }
 
   function setTab(tab) {
-    const showHistory = tab === "history";
-    document.getElementById("menuView").hidden = showHistory;
-    document.getElementById("historyView").hidden = !showHistory;
-    document.getElementById("menuTab").setAttribute("aria-selected", String(!showHistory));
-    document.getElementById("historyTab").setAttribute("aria-selected", String(showHistory));
-    if (showHistory) renderHistory();
+    const views = {
+      menu: "menuView",
+      history: "historyView",
+      reviews: "reviewsView",
+      restaurants: "restaurantsView",
+      profile: "profileView"
+    };
+    Object.entries(views).forEach(([key, id]) => {
+      document.getElementById(id).hidden = key !== tab;
+    });
+    document.querySelectorAll(".tabs .tab").forEach(button => {
+      button.setAttribute("aria-selected", String(button.dataset.tab === tab));
+    });
+    if (tab === "history") renderHistory();
   }
 
-  document.getElementById("menuTab").addEventListener("click", () => setTab("menu"));
-  document.getElementById("historyTab").addEventListener("click", () => setTab("history"));
+  document.querySelectorAll(".tabs .tab").forEach(button => {
+    button.addEventListener("click", () => setTab(button.dataset.tab));
+  });
+  // Profilis pasiekiamas paspaudus B avatarą viršutiniame dešiniajame kampe.
+  document.getElementById("profileButton").addEventListener("click", () => setTab("profile"));
   renderHistory();
+
+  // Atsiliepimai saugomi šios naršyklės localStorage.
+  const demoReviews = [
+    { title: "Green Bite", name: "Mantas", rating: 5, comment: "„Atkeliavo greitai, o maistas buvo tikrai skanus. Užsisakyčiau dar kartą!“", when: "prieš 2 val." },
+    { title: "Burger House", name: "Ieva", rating: 5, comment: "„Didelė porcija, geras skonis ir viskas tvarkingai supakuota.“", when: "vakar" },
+    { title: "Sushi Point", name: "Tomas", rating: 4, comment: "„Sušiai švieži, pristatymas sklandus. Norėtųsi tik kiek didesnės porcijos.“", when: "prieš 2 d." },
+    { title: "Pizza Corner", name: "Gabija", rating: 5, comment: "„Traški picos plutelė ir daug sūrio. Puikus pasirinkimas vakarui.“", when: "prieš 3 d." }
+  ];
+  let userReviews = [];
+  try {
+    userReviews = JSON.parse(localStorage.getItem("boomfood_reviews") || "[]");
+    if (!Array.isArray(userReviews)) userReviews = [];
+  } catch { userReviews = []; }
+
+  function escapeHTML(value) {
+    return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+  }
+  function renderReviews() {
+    const all = [...userReviews].reverse().map(review => ({...review, title: "BoomFood", when: "ką tik"}));
+    document.getElementById("reviewList").innerHTML = [...all, ...demoReviews].map(review => {
+      const stars = "★".repeat(review.rating) + "☆".repeat(5 - review.rating);
+      return `<article class="review-card">
+        <div class="review-top"><strong>${escapeHTML(review.title || "BoomFood")}</strong><span class="stars">${stars}</span></div>
+        <p>${escapeHTML(review.comment)}</p>
+        <span class="review-author">${escapeHTML(review.name)} · ${escapeHTML(review.when)}</span>
+      </article>`;
+    }).join("");
+    const average = [...userReviews, ...demoReviews].reduce((sum, review) => sum + Number(review.rating), 0) / (userReviews.length + demoReviews.length);
+    document.getElementById("ratingSummary").textContent = `★ ${average.toFixed(1).replace(".", ",")} / 5`;
+  }
+
+  document.getElementById("reviewForm").addEventListener("submit", event => {
+    event.preventDefault();
+    const name = document.getElementById("reviewName").value.trim();
+    const comment = document.getElementById("reviewText").value.trim();
+    const rating = Number(document.getElementById("reviewRating").value);
+    if (!name || !comment || rating < 1 || rating > 5) return;
+    userReviews.push({ name, comment, rating, createdAt: new Date().toISOString() });
+    try {
+      localStorage.setItem("boomfood_reviews", JSON.stringify(userReviews));
+      document.getElementById("reviewMessage").textContent = "Atsiliepimas paskelbtas ir išsaugotas šiame įrenginyje.";
+    } catch {
+      userReviews.pop();
+      document.getElementById("reviewMessage").textContent = "Nepavyko išsaugoti atsiliepimo naršyklėje.";
+      return;
+    }
+    event.target.reset();
+    renderReviews();
+  });
+  renderReviews();
 
   // 2. Meniu
   document.getElementById("menu").innerHTML = items.map((it, i) =>
