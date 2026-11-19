@@ -59,6 +59,23 @@
                 line-height: 1.2;
             }
 
+            .brand-home {
+                width: fit-content;
+                padding: 0;
+                border: 0;
+                border-radius: 0;
+                background: transparent;
+                color: inherit;
+                text-align: left;
+                cursor: pointer;
+            }
+
+            .brand-home:focus-visible {
+                outline: 3px solid var(--green);
+                outline-offset: 5px;
+                border-radius: 5px;
+            }
+
             .brand-icon {
                 position: relative;
                 flex: 0 0 40px;
@@ -2029,13 +2046,94 @@
                 .delivery-header .wrap { flex-wrap: wrap; justify-content: center; padding-block: 12px; }
             }
         </style>
+    
+        <style>
+            .restaurants-view { margin-top: 28px; padding-bottom: 28px; }
+            .restaurants-heading {
+                display: flex; align-items: flex-end; justify-content: space-between;
+                gap: 18px; margin-bottom: 20px;
+            }
+            .restaurants-heading h2 { font-size: clamp(1.65rem, 3vw, 2.15rem); letter-spacing: -.05em; }
+            .restaurants-eyebrow {
+                margin: 0 0 6px; color: var(--green); font-size: .68rem;
+                font-weight: 850; letter-spacing: .13em;
+            }
+            .restaurants-heading .muted-note { margin-top: 7px; }
+            .restaurants-count {
+                flex: 0 0 auto; padding: 7px 11px; border-radius: 999px;
+                background: #e8f8ef; color: #076444; font-size: .78rem; font-weight: 750;
+            }
+            .restaurant-list {
+                display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;
+            }
+            .restaurant-card {
+                display: grid; grid-template-columns: 150px minmax(0, 1fr); min-height: 164px;
+                overflow: hidden; padding: 0; border: 1px solid var(--border); border-radius: 20px;
+                background: var(--surface); color: var(--ink); text-align: left;
+                box-shadow: 0 3px 12px #17251f08; transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+            }
+            .restaurant-card:hover { transform: translateY(-3px); border-color: #b9e5cb; box-shadow: 0 10px 24px #17251f12; }
+            .restaurant-card:focus-visible, .restaurant-back-button:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+            .restaurant-card-art {
+                display: grid; place-items: center; min-height: 164px; overflow: hidden;
+                background: radial-gradient(circle at 35% 30%, #fff 0, #f3fbf6 34%, #d9f1e3 100%);
+            }
+            .restaurant-card-art > span {
+                display: grid; place-items: center; width: 92px; height: 92px;
+                border: 1px solid #ffffffb8; border-radius: 28px; background: #ffffffb8;
+                font-size: 3.2rem; box-shadow: 0 10px 25px #174d3212;
+            }
+            .restaurant-card-content { display: flex; flex-direction: column; align-items: flex-start; padding: 17px 18px; min-width: 0; }
+            .restaurant-card-category { color: var(--green); font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+            .restaurant-card-name { margin-top: 5px; font-size: 1.12rem; line-height: 1.25; }
+            .restaurant-card-meta { margin-top: 7px; color: var(--muted); font-size: .78rem; }
+            .restaurant-card-link { display: inline-flex; gap: 7px; margin-top: auto; padding-top: 13px; color: var(--green); font-size: .82rem; font-weight: 800; }
+            .restaurant-menu-view { margin-top: 28px; padding-bottom: 36px; }
+            .restaurant-back-button {
+                margin-bottom: 22px; padding: 9px 13px; border: 1px solid var(--border);
+                border-radius: 11px; background: white; color: var(--ink); font-size: .85rem;
+            }
+            .restaurant-back-button:hover { background: #eef8f2; }
+            .restaurant-detail-heading { display: flex; align-items: center; gap: 17px; margin-bottom: 22px; }
+            .restaurant-detail-icon {
+                display: grid; place-items: center; width: 76px; height: 76px; flex: 0 0 auto;
+                border: 1px solid var(--border); border-radius: 20px; background: #e8f8ef; font-size: 2.6rem;
+            }
+            .restaurant-detail-heading .restaurants-eyebrow { margin-bottom: 4px; }
+            .restaurant-detail-heading .menu-title { margin: 0; font-size: 1.8rem; }
+            .restaurant-detail-heading .muted-note { margin-top: 5px; }
+            @media (max-width: 780px) {
+                .restaurant-list { grid-template-columns: 1fr; gap: 13px; }
+                .restaurant-card { grid-template-columns: 130px minmax(0, 1fr); min-height: 145px; }
+                .restaurant-card-art { min-height: 145px; }
+            }
+            @media (max-width: 500px) {
+                .restaurants-heading { align-items: flex-start; }
+                .restaurants-count { font-size: .7rem; padding: 6px 8px; }
+                .restaurant-card { grid-template-columns: 104px minmax(0, 1fr); min-height: 132px; }
+                .restaurant-card-art { min-height: 132px; }
+                .restaurant-card-art > span { width: 70px; height: 70px; border-radius: 22px; font-size: 2.5rem; }
+                .restaurant-card-content { padding: 13px 12px; }
+                .restaurant-card-name { font-size: .98rem; }
+                .restaurant-card-meta { font-size: .7rem; }
+                .restaurant-card-link { font-size: .75rem; }
+                .restaurant-detail-icon { width: 60px; height: 60px; font-size: 2rem; border-radius: 16px; }
+                .restaurant-detail-heading { gap: 12px; }
+                .restaurant-detail-heading .menu-title { font-size: 1.35rem; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .restaurant-card { transition: none; }
+                .restaurant-card:hover { transform: none; }
+            }
+        </style>
+
     </head>
     <body>
         <header class="site-header">
             <div class="wrap">
-                <p class="brand">
+                <button class="brand brand-home" id="homeButton" type="button" aria-label="BoomFood – grįžti į pagrindinį puslapį">
                     <span class="brand-icon" aria-hidden="true"></span>BoomFood
-                </p>
+                </button>
                 <div class="header-right">
                     <button class="avatar-button" id="profileButton" type="button" aria-label="Atidaryti profilį" aria-controls="profileView" title="Profilis">
                         <span class="user-avatar" aria-hidden="true">B</span>
@@ -2073,19 +2171,33 @@
                 <div class="hero-photo" aria-hidden="true"></div>
             </section>
             <nav class="tabs" aria-label="Pagrindinė navigacija">
-                <button class="tab" data-tab="menu" type="button" aria-selected="true">Meniu</button>
+                <button class="tab" data-tab="restaurants" type="button" aria-selected="true">Restoranai</button>
                 <button class="tab" data-tab="history" type="button" aria-selected="false">Užsakymų istorija</button>
                 <button class="tab" data-tab="reviews" type="button" aria-selected="false">Atsiliepimai</button>
-                <button class="tab" data-tab="restaurants" type="button" aria-selected="false">Restoranai</button>
             </nav>
-            <div id="menuView">
-                <div class="layout">
-                    <section aria-labelledby="menu-title">
-                        <h2 class="menu-title" id="menu-title" tabindex="-1">Meniu</h2>
-                        <div id="menu"></div>
-                    </section>
+            <section id="restaurantsView" class="restaurants-view" aria-labelledby="restaurantsTitle">
+                <div class="restaurants-heading">
+                    <div>
+                        <p class="restaurants-eyebrow">BOOMFOOD · ATRASK SKONIUS</p>
+                        <h2 id="restaurantsTitle">Restoranai</h2>
+                        <p class="muted-note">Išsirink restoraną, peržiūrėk jo meniu ir pridėk patiekalus į krepšelį.</p>
+                    </div>
+                    <span class="restaurants-count" id="restaurantsCount">5 restoranai</span>
                 </div>
-            </div>
+                <div id="restaurantList" class="restaurant-list" aria-live="polite"></div>
+            </section>
+            <section id="menuView" class="restaurant-menu-view" hidden aria-labelledby="menu-title">
+                <button class="restaurant-back-button" id="restaurantBackButton" type="button">← Visi restoranai</button>
+                <div class="restaurant-detail-heading">
+                    <span class="restaurant-detail-icon" id="restaurantDetailIcon" aria-hidden="true">🍽️</span>
+                    <div>
+                        <p class="restaurants-eyebrow" id="restaurantDetailCategory">RESTORANAS</p>
+                        <h2 class="menu-title" id="menu-title" tabindex="-1">Meniu</h2>
+                        <p class="muted-note" id="restaurantDetailMeta">Patiekalai ir kainos</p>
+                    </div>
+                </div>
+                <div id="menu"></div>
+            </section>
             <section id="historyView" aria-labelledby="historyTitle" hidden>
                 <div class="history-heading">
                     <h2 id="historyTitle">Užsakymų istorija</h2>
@@ -2160,10 +2272,6 @@
                         <span class="review-author">Gabija · prieš 3 d.</span>
                     </article>
                 </div>
-            </section>
-            <section id="restaurantsView" class="extra-view" aria-labelledby="restaurantsTitle" hidden>
-                <h2 id="restaurantsTitle">Restoranai</h2>
-                <div class="empty-history">Restoranų skiltis bus papildyta – jos turinį paruoš kitas komandos narys.</div>
             </section>
             <section id="profileView" class="extra-view" aria-labelledby="profileTitle" hidden>
                 <h2 id="profileTitle">Profilis</h2>
@@ -2251,7 +2359,9 @@
             <section class="delivery-screen" role="dialog" aria-modal="true" aria-labelledby="deliveryTitle" aria-describedby="deliveryNotice">
                 <div class="delivery-header">
                     <div class="wrap">
-                        <p class="brand"><span class="brand-icon" aria-hidden="true"></span>BoomFood</p>
+                        <button class="brand brand-home" type="button" data-home-button aria-label="BoomFood – grįžti į pagrindinį puslapį">
+                            <span class="brand-icon" aria-hidden="true"></span>BoomFood
+                        </button>
                         <button class="delivery-back" id="deliveryBack" type="button">← Grįžti į meniu</button>
                     </div>
                 </div>
@@ -2295,6 +2405,146 @@
             </div>
         </div>
         <script>
+            // Bendras programos būsenos valdymas. Duomenys saugomi šiame įrenginyje,
+            // kol projektas neturi serverio / bendros duomenų bazės.
+            const STORAGE_KEYS = {
+                cart: "boomfood.cart.v1",
+                history: "boomfood.orderHistory.v1",
+                xp: "boomfood.xp.v1",
+                reviews: "boomfood.reviews.v1"
+            };
+
+            function readStoredValue(key, fallback) {
+                try {
+                    const raw = localStorage.getItem(key);
+                    return raw === null ? fallback : JSON.parse(raw);
+                } catch (error) {
+                    console.warn(`Nepavyko nuskaityti ${key} iš localStorage:`, error);
+                    return fallback;
+                }
+            }
+
+            function writeStoredValue(key, value) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                    return true;
+                } catch (error) {
+                    console.warn(`Nepavyko išsaugoti ${key} localStorage:`, error);
+                    return false;
+                }
+            }
+
+            let cart = [];
+            let orderHistory = readStoredValue(STORAGE_KEYS.history, []);
+            if (!Array.isArray(orderHistory)) orderHistory = [];
+            let xp = Number(readStoredValue(STORAGE_KEYS.xp, 0));
+            if (!Number.isFinite(xp) || xp < 0) xp = 0;
+            let levelUpTimer = null;
+
+            function saveXP() {
+                writeStoredValue(STORAGE_KEYS.xp, xp);
+                const status = document.getElementById("xpSaveStatus");
+                if (status) status.textContent = "Pažanga išsaugoma automatiškai šiame įrenginyje.";
+            }
+
+            const stepNames = [
+                "Užsakymas priimtas",
+                "Gaminamas",
+                "Pakeliui",
+                "Pristatytas"
+            ];
+
+            function escapeHTML(value) {
+                return String(value ?? "").replace(/[&<>"']/g, character => ({
+                    "&": "&amp;",
+                    "<": "&lt;",
+                    ">": "&gt;",
+                    '"': "&quot;",
+                    "'": "&#39;"
+                })[character]);
+            }
+
+            function saveHistory() {
+                writeStoredValue(STORAGE_KEYS.history, orderHistory);
+            }
+
+            function renderHistory() {
+                const list = document.getElementById("historyList");
+                const count = document.getElementById("historyCount");
+                if (!list || !count) return;
+
+                const totalOrders = orderHistory.length;
+                count.textContent = `${totalOrders} ${totalOrders === 1 ? "užsakymas" : "užsakymų"}`;
+                if (!totalOrders) {
+                    list.innerHTML = '<div class="empty-history">Kol kas užsakymų nėra. Pasirink patiekalų meniu ir pateik pirmą demonstracinį užsakymą.</div>';
+                    return;
+                }
+
+                list.innerHTML = orderHistory.map(order => {
+                    const parsedDate = new Date(order.createdAt);
+                    const dateLabel = Number.isNaN(parsedDate.getTime())
+                        ? "Data nenurodyta"
+                        : new Intl.DateTimeFormat("lt-LT", { dateStyle: "medium", timeStyle: "short" }).format(parsedDate);
+                    const lines = Array.isArray(order.items) ? order.items.map(item => {
+                        const quantity = Math.max(1, Number(item.quantity) || 1);
+                        return `<li>${escapeHTML(item.name)} ×${quantity}</li>`;
+                    }).join("") : "";
+                    return `
+                        <article class="history-card">
+                            <div class="history-top">
+                                <div><div class="history-id">Užsakymas #${escapeHTML(order.id)}</div><div class="history-date">${escapeHTML(dateLabel)}</div></div>
+                                <span class="history-status">${escapeHTML(order.status || stepNames[0])}</span>
+                            </div>
+                            <ul class="history-items">${lines}</ul>
+                            <div class="history-bottom"><span class="history-date">${Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + Math.max(1, Number(item.quantity) || 1), 0) : 0} prek.</span><strong class="history-total">${formatMoney(Number(order.total) || 0)}</strong></div>
+                        </article>`;
+                }).join("");
+            }
+
+            function setTab(viewName) {
+                const views = {
+                    menu: "menuView",
+                    restaurants: "restaurantsView",
+                    history: "historyView",
+                    reviews: "reviewsView",
+                    profile: "profileView",
+                    level: "levelView"
+                };
+                if (!Object.prototype.hasOwnProperty.call(views, viewName)) return;
+
+                Object.entries(views).forEach(([name, id]) => {
+                    const view = document.getElementById(id);
+                    if (view) view.hidden = name !== viewName;
+                });
+
+                const hero = document.querySelector(".hero");
+                const tabs = document.querySelector(".tabs");
+                if (hero) hero.hidden = viewName !== "restaurants";
+                // Restorano meniu yra atskiras ekranas su mygtuku grįžti į katalogą.
+                if (tabs) tabs.hidden = viewName === "profile" || viewName === "level" || viewName === "menu";
+
+                document.querySelectorAll(".tab[data-tab]").forEach(button => {
+                    button.setAttribute("aria-selected", String(button.dataset.tab === viewName));
+                });
+
+                if (viewName === "history") renderHistory();
+                if (viewName === "level") renderLevelCenter();
+                if (viewName === "restaurants") renderRestaurants();
+            }
+
+            function goHome() {
+                const delivery = document.getElementById("deliveryOverlay");
+                const cartOverlay = document.getElementById("cartOverlay");
+                if (delivery && !delivery.hidden) {
+                    closeDelivery();
+                    return;
+                }
+                if (cartOverlay && !cartOverlay.hidden) closeCart();
+                hideLevelUp();
+                setTab("restaurants");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+
             // 1. Prekės (čia galima pridėti daugiau)
             // 1. Restoranai ir patiekalai (kiekvienas po 5)
             const IMG = {
@@ -2361,41 +2611,53 @@
 
             let selectedRestaurant = restaurants[0].id;
 
-            // 2. Restoranų pasirinkimas ir meniu
-            (function injectRestaurantStyles() {
-                const style = document.createElement("style");
-                style.textContent = `
-                    .restaurant-picker{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;margin-bottom:8px}
-                    .restaurant-chip{flex:0 0 auto;border:1px solid #ddd;background:#fff;color:inherit;border-radius:999px;
-                      padding:8px 14px;cursor:pointer;font:inherit;font-weight:600;white-space:nowrap}
-                    .restaurant-chip[aria-pressed="true"]{background:#111;color:#fff;border-color:#111}
-                `;
-                document.head.appendChild(style);
-            })();
+            // 2. Slenkamas restoranų katalogas ir atskiro restorano meniu.
+            const restaurantCategories = {
+                lt: "Lietuviška virtuvė",
+                pizza: "Picos ir itališki skoniai",
+                burger: "Mėsainiai",
+                sushi: "Sušiai ir azijietiški patiekalai",
+                green: "Salotos ir sveikesni pasirinkimai"
+            };
 
-            function renderRestaurantPicker() {
-                const menuEl = document.getElementById("menu");
-                let picker = document.getElementById("restaurantPicker");
-                if (!picker) {
-                    picker = document.createElement("div");
-                    picker.id = "restaurantPicker";
-                    picker.className = "restaurant-picker";
-                    picker.setAttribute("role", "group");
-                    picker.setAttribute("aria-label", "Pasirink restoraną");
-                    menuEl.parentNode.insertBefore(picker, menuEl);
-                    picker.addEventListener("click", event => {
-                        const button = event.target.closest("button[data-restaurant]");
-                        if (!button) return;
-                        selectedRestaurant = button.dataset.restaurant;
-                        renderRestaurantPicker();
-                        renderMenu();
-                    });
-                }
-                picker.innerHTML = restaurants.map(r =>
-                    `<button type="button" class="restaurant-chip" data-restaurant="${r.id}"
-                      aria-pressed="${r.id === selectedRestaurant}">${r.icon} ${r.name}</button>`
-                ).join("");
+            function renderRestaurants() {
+                const list = document.getElementById("restaurantList");
+                const count = document.getElementById("restaurantsCount");
+                if (!list) return;
+                if (count) count.textContent = `${restaurants.length} restoranai`;
+                list.innerHTML = restaurants.map(restaurant => `
+                    <button class="restaurant-card" type="button" data-open-restaurant="${escapeHTML(restaurant.id)}" aria-label="Atidaryti ${escapeHTML(restaurant.name)} meniu">
+                        <span class="restaurant-card-art" aria-hidden="true"><span>${restaurant.icon}</span></span>
+                        <span class="restaurant-card-content">
+                            <span class="restaurant-card-category">${escapeHTML(restaurantCategories[restaurant.id] || "Restoranas")}</span>
+                            <strong class="restaurant-card-name">${escapeHTML(restaurant.name)}</strong>
+                            <span class="restaurant-card-meta">${restaurant.dishes.length} patiekalai <span aria-hidden="true">·</span> Demonstracinis meniu</span>
+                            <span class="restaurant-card-link">Peržiūrėti meniu <span aria-hidden="true">→</span></span>
+                        </span>
+                    </button>`).join("");
             }
+
+            function openRestaurant(restaurantId) {
+                const restaurant = restaurants.find(item => item.id === restaurantId);
+                if (!restaurant) return;
+                selectedRestaurant = restaurant.id;
+                document.getElementById("restaurantDetailIcon").textContent = restaurant.icon;
+                document.getElementById("restaurantDetailCategory").textContent = restaurantCategories[restaurant.id] || "RESTORANAS";
+                document.getElementById("menu-title").textContent = restaurant.name;
+                document.getElementById("restaurantDetailMeta").textContent = `${restaurant.dishes.length} patiekalai · Pasirink patiekalus ir pridėk juos į krepšelį`;
+                renderMenu();
+                setTab("menu");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+
+            document.getElementById("restaurantList")?.addEventListener("click", event => {
+                const card = event.target.closest("button[data-open-restaurant]");
+                if (card) openRestaurant(card.dataset.openRestaurant);
+            });
+            document.getElementById("restaurantBackButton")?.addEventListener("click", () => {
+                setTab("restaurants");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            });
 
             function renderMenu() {
                 document.getElementById("menu").innerHTML = items.map((it, i) => {
@@ -2411,8 +2673,65 @@
                 }).join("");
             }
 
-            renderRestaurantPicker();
+            renderRestaurants();
             renderMenu();
+            renderHistory();
+
+            const reviewList = document.getElementById("reviewList");
+            const defaultReviewMarkup = reviewList ? reviewList.innerHTML : "";
+            let savedReviews = readStoredValue(STORAGE_KEYS.reviews, []);
+            if (!Array.isArray(savedReviews)) savedReviews = [];
+
+            function renderReviews() {
+                if (!reviewList) return;
+                const savedMarkup = savedReviews.map(review => `
+                    <article class="review-card">
+                        <div class="review-top"><strong>${escapeHTML(review.name)}</strong><span class="stars">${"★".repeat(review.rating)}${"☆".repeat(5 - review.rating)}</span></div>
+                        <p>„${escapeHTML(review.comment)}“</p>
+                        <span class="review-author">${escapeHTML(review.dateLabel || "Neseniai")}</span>
+                    </article>`).join("");
+                reviewList.innerHTML = savedMarkup + defaultReviewMarkup;
+            }
+            renderReviews();
+
+            document.querySelector(".tabs")?.addEventListener("click", event => {
+                const button = event.target.closest("button[data-tab]");
+                if (button) setTab(button.dataset.tab);
+            });
+
+            document.getElementById("profileButton")?.addEventListener("click", () => setTab("profile"));
+            document.getElementById("levelButton")?.addEventListener("click", () => setTab("level"));
+            document.getElementById("levelBackButton")?.addEventListener("click", () => setTab("restaurants"));
+            document.getElementById("levelUpClose")?.addEventListener("click", hideLevelUp);
+            document.getElementById("homeButton")?.addEventListener("click", goHome);
+            document.querySelectorAll("[data-home-button]").forEach(button => button.addEventListener("click", goHome));
+
+            document.getElementById("reviewForm")?.addEventListener("submit", event => {
+                event.preventDefault();
+                const form = event.currentTarget;
+                const name = form.elements.namedItem("name").value.trim();
+                const rating = Number(form.elements.namedItem("rating").value);
+                const comment = form.elements.namedItem("comment").value.trim();
+                const message = document.getElementById("reviewMessage");
+                if (!name || !comment || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+                    message.textContent = "Užpildyk visus laukus ir pasirink įvertinimą.";
+                    return;
+                }
+                savedReviews.unshift({
+                    name: name.slice(0, 40),
+                    rating,
+                    comment: comment.slice(0, 500),
+                    createdAt: new Date().toISOString(),
+                    dateLabel: "Ką tik · išsaugota šiame įrenginyje"
+                });
+                writeStoredValue(STORAGE_KEYS.reviews, savedReviews);
+                renderReviews();
+                form.reset();
+                message.textContent = "Atsiliepimas pridėtas. Šiuo metu jis išsaugotas tik šiame įrenginyje.";
+            });
+
+            // Pradinis puslapis – restoranų katalogas.
+            setTab("restaurants");
 
             // 3. Krepšelis: vienodi produktai rodomi viena eilute su kiekiu.
             function getGroupedCart() {
