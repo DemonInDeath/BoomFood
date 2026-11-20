@@ -3138,6 +3138,312 @@
 
     atnaujintiBalansa();
 </script>
+        
+<!-- BOOMFOOD LAIMES RATAS -->
+
+<style>
+    #bf-open-wheel {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        z-index: 900;
+        padding: 14px 22px;
+        border: none;
+        border-radius: 30px;
+        background: #087a54;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 4px 15px #0002;
+    }
+
+    #bf-open-wheel:hover {
+        background: #065c40;
+    }
+
+    #bf-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        background: #0009;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+    }
+
+    #bf-overlay[hidden] {
+        display: none;
+    }
+
+    #bf-panel {
+        position: relative;
+        width: 100%;
+        max-width: 420px;
+        max-height: 95vh;
+        overflow-y: auto;
+        background: white;
+        border-radius: 22px;
+        padding: 25px;
+        text-align: center;
+        color: #173b2c;
+        box-shadow: 0 15px 50px #0003;
+    }
+
+    #bf-close {
+        position: absolute;
+        right: 15px;
+        top: 10px;
+        background: transparent;
+        border: none;
+        font-size: 28px;
+        cursor: pointer;
+    }
+
+    #bf-wheel-box {
+        position: relative;
+        width: 280px;
+        height: 280px;
+        max-width: 100%;
+        margin: 25px auto;
+    }
+
+    #bf-wheel {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 7px solid #087a54;
+        background: conic-gradient(
+            from -30deg,
+            #d6f5e3 0deg 60deg,
+            #a8e6c3 60deg 120deg,
+            #72d6a2 120deg 180deg,
+            #f8e6a5 180deg 240deg,
+            #42bd86 240deg 300deg,
+            #e9c77b 300deg 360deg
+        );
+        transition: transform 5s cubic-bezier(
+            0.12, 0.65, 0.12, 1
+        );
+    }
+
+    #bf-wheel span {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        font-size: 17px;
+        font-weight: bold;
+        white-space: nowrap;
+        color: #123b2a;
+    }
+
+    #bf-wheel::after {
+        content: "";
+        position: absolute;
+        width: 28px;
+        height: 28px;
+        background: white;
+        border: 5px solid #087a54;
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    #bf-pointer {
+        position: absolute;
+        z-index: 5;
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 13px solid transparent;
+        border-right: 13px solid transparent;
+        border-top: 28px solid #123b2a;
+    }
+
+    #bf-spin {
+        padding: 13px 35px;
+        border: none;
+        border-radius: 25px;
+        background: #087a54;
+        color: white;
+        font-size: 17px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    #bf-spin:disabled {
+        background: #a3b5ac;
+        cursor: not-allowed;
+    }
+
+    #bf-result {
+        margin-top: 18px;
+        font-size: 17px;
+        font-weight: bold;
+    }
+</style>
+
+<button id="bf-open-wheel" type="button">
+    🎁 Laimės ratas
+</button>
+
+<div id="bf-overlay" hidden>
+    <div id="bf-panel"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="bf-title">
+
+        <button id="bf-close"
+                type="button"
+                aria-label="Uždaryti">×</button>
+
+        <h2 id="bf-title">🎡 BoomFood laimės ratas</h2>
+        <p>Suk ratą ir laimėk pinigų!</p>
+
+        <div id="bf-wheel-box">
+            <div id="bf-pointer"></div>
+            <div id="bf-wheel"></div>
+        </div>
+
+        <button id="bf-spin" type="button">
+            SUKTI RATĄ
+        </button>
+
+        <p id="bf-result" aria-live="polite"></p>
+        <small>Vienas sukimas per dieną</small>
+    </div>
+</div>
+
+<script>
+    const prizai = [0, 1, 2, 5, 10, 20];
+
+    const ratas = document.getElementById("bf-wheel");
+    const sukti = document.getElementById("bf-spin");
+    const rezultatas = document.getElementById("bf-result");
+    const langas = document.getElementById("bf-overlay");
+
+    let pasukimas = 0;
+    let sukasi = false;
+
+    // Parodome prizus ant rato
+    prizai.forEach(function(prizas, i) {
+        const tekstas = document.createElement("span");
+        tekstas.textContent = prizas + " €";
+
+        const kampas = i * 60;
+
+        tekstas.style.transform =
+            `translate(-50%, -50%)
+             rotate(${kampas}deg)
+             translateY(-100px)
+             rotate(${-kampas}deg)`;
+
+        ratas.appendChild(tekstas);
+    });
+
+    // Siandienos data
+    function siandien() {
+        const d = new Date();
+
+        return d.getFullYear() + "-" +
+            String(d.getMonth() + 1).padStart(2, "0") + "-" +
+            String(d.getDate()).padStart(2, "0");
+    }
+
+    // Patikriname, ar siandien jau suko
+    function tikrintiSukima() {
+        const paskutinis = localStorage.getItem(
+            "boomfood-paskutinis-sukimas"
+        );
+
+        if (paskutinis === siandien()) {
+            sukti.disabled = true;
+            rezultatas.textContent =
+                "Šiandien jau sukai ratą. Bandyk rytoj!";
+        } else {
+            sukti.disabled = false;
+            rezultatas.textContent = "";
+        }
+    }
+
+    document.getElementById("bf-open-wheel")
+        .addEventListener("click", function() {
+            langas.hidden = false;
+
+            if (!sukasi) {
+                tikrintiSukima();
+            }
+        });
+
+    document.getElementById("bf-close")
+        .addEventListener("click", function() {
+            langas.hidden = true;
+        });
+
+
+    sukti.addEventListener("click", function() {
+        if (sukasi) return;
+
+        tikrintiSukima();
+        if (sukti.disabled) return;
+
+  
+        if (typeof pridetiPinigu !== "function") {
+            rezultatas.textContent =
+                "Klaida: nerasta balanso funkcija.";
+            return;
+        }
+
+        sukasi = true;
+        sukti.disabled = true;
+        rezultatas.textContent = "Ratas sukasi...";
+
+        const indeksas = Math.floor(
+            Math.random() * prizai.length
+        );
+
+        const laimejimas = prizai[indeksas];
+
+
+        const tikslas = (360 - indeksas * 60) % 360;
+        const dabartinis = pasukimas % 360;
+        const skirtumas =
+            (tikslas - dabartinis + 360) % 360;
+
+        pasukimas += 360 * 5 + skirtumas;
+
+
+        pridetiPinigu(laimejimas);
+
+        localStorage.setItem(
+            "boomfood-paskutinis-sukimas",
+            siandien()
+        );
+
+
+        ratas.style.transform =
+            `rotate(${pasukimas}deg)`;
+
+        setTimeout(function() {
+            sukasi = false;
+
+            rezultatas.textContent =
+                "🎉 Laimėjai " + laimejimas +
+                " €! Prizas pridėtas prie balanso.";
+
+            sukti.disabled = true;
+        }, 5200);
+    });
+
+    tikrintiSukima();
+</script>
+
+
+
 
 
         
