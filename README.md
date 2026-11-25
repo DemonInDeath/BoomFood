@@ -6,7 +6,7 @@ Demonstracinė maisto užsakymo svetainė, sukurta naudojant HTML, CSS ir JavaSc
 - `index.html` – puslapio struktūra, ekranai ir formos.
 - `css/style.css` – dizainas, komponentai, animacijos ir mobiliojo ekrano taisyklės.
 - `js/script.js` – restoranai, meniu, krepšelis, užsakymai, atsiliepimai, XP ir demonstracinis balansas.
-- `images/` – dvi originalios WebP nuotraukos.
+- `images/` – WebP nuotraukos.
 
 ## Dabartinės galimybės ir ribojimai
 
