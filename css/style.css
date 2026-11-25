@@ -2135,3 +2135,208 @@ button:disabled {
     font-weight: bold;
     white-space: nowrap;
 }
+
+/* -------------------------------------------------------------------------
+   BoomFood profile, restaurant-specific reviews, account menu and themes
+   ------------------------------------------------------------------------- */
+.account-menu-wrap { position: relative; z-index: 120; }
+.account-menu {
+    position: absolute; top: calc(100% + 12px); right: 0; z-index: 1200;
+    width: 224px; padding: 9px; border: 1px solid var(--border); border-radius: 16px;
+    background: var(--surface); color: var(--ink); box-shadow: 0 16px 42px #12251b24;
+}
+.account-menu[hidden] { display: none !important; }
+.account-menu-item {
+    display: block; width: 100%; padding: 10px 11px; border-radius: 10px;
+    background: transparent; color: var(--ink); text-align: left; font-weight: 650;
+}
+.account-menu-item:hover { background: var(--page); }
+.account-language-label { display: block; margin: 8px 10px 5px; color: var(--muted); font-size: .75rem; font-weight: 750; }
+.account-language-select {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--page); color: var(--ink); font: inherit;
+}
+.user-avatar { overflow: hidden; }
+.user-avatar img, .profile-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; border-radius: inherit; }
+#boomfood-balansas { font-size: .84rem; padding: 8px 11px; }
+
+.restaurant-card { cursor: default; }
+.restaurant-card-content { display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
+.restaurant-rating-line { display: flex; align-items: center; gap: 6px; margin-top: 9px; font-size: .78rem; }
+.restaurant-rating-line .stars { font-size: .82rem; letter-spacing: 0; }
+.restaurant-rating-line strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.restaurant-rating-line small { color: var(--muted); }
+.restaurant-card-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 12px; }
+.restaurant-menu-action, .restaurant-review-action {
+    min-height: 34px; padding: 7px 10px; border-radius: 9px; font-size: .78rem; font-weight: 750;
+}
+.restaurant-menu-action { background: var(--green); color: white; }
+.restaurant-menu-action:hover { background: var(--green-hover); }
+.restaurant-review-action { border: 1px solid var(--border); background: var(--page); color: var(--ink); }
+.restaurant-review-action:hover { border-color: var(--green); color: var(--green); }
+.restaurant-detail-rating { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 9px; }
+.restaurant-detail-rating strong { font-size: .88rem; }
+.restaurant-detail-rating button { padding: 5px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--green); font-size: .78rem; font-weight: 750; }
+.restaurant-detail-rating button:hover { background: var(--page); }
+.dish-placeholder { display: grid; place-items: center; font-size: 2rem; background: var(--page); border-radius: 12px; }
+.add-dish-button { min-width: 82px; }
+
+.profile-heading-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.profile-heading-row h2 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.2rem); letter-spacing: -.045em; }
+.profile-back-button, .level-back-button {
+    flex: 0 0 auto; padding: 9px 13px; border: 1px solid var(--border); border-radius: 11px;
+    background: var(--surface); color: var(--ink); font-size: .84rem; font-weight: 700;
+}
+.profile-back-button:hover, .level-back-button:hover { background: var(--page); }
+.profile-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(260px, .8fr); gap: 17px; align-items: stretch; }
+.profile-card { min-width: 0; padding: 21px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: 0 3px 12px #17251f08; }
+.profile-main-card h3, .profile-shortcuts-card h3, .settings-panel h3, .order-history-section h3 { margin: 0; font-size: 1.05rem; }
+.profile-identity { display: flex; align-items: center; gap: 18px; }
+.profile-avatar-wrap { display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; gap: 7px; }
+.profile-avatar { width: 82px; height: 82px; display: grid; place-items: center; overflow: hidden; border: 3px solid var(--mint); border-radius: 50%; background: var(--green); color: white; font-size: 1.75rem; font-weight: 800; }
+.avatar-upload-button { color: var(--green); font-size: .76rem; font-weight: 800; cursor: pointer; }
+.avatar-upload-button:hover { text-decoration: underline; }
+.profile-card-eyebrow { margin: 0 0 4px; color: var(--green); font-size: .68rem; font-weight: 850; letter-spacing: .12em; }
+.profile-identity-copy h3 { margin: 0; font-size: 1.25rem; overflow-wrap: anywhere; }
+.profile-divider { height: 1px; margin: 19px 0; background: var(--border); }
+.profile-name-form { margin-top: 13px; }
+.profile-name-form label { display: block; margin-bottom: 6px; font-size: .82rem; font-weight: 750; }
+.profile-name-controls { display: flex; gap: 9px; }
+.profile-name-controls input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--page); color: var(--ink); font: inherit; }
+.profile-name-controls button { padding: 9px 14px; border-radius: 10px; background: var(--green); color: white; font-size: .84rem; font-weight: 750; }
+.profile-name-controls button:disabled { opacity: .48; cursor: not-allowed; }
+.profile-cooldown { min-height: 1.3em; margin: 7px 0 0; color: var(--muted); font-size: .76rem; }
+.profile-balance-card { display: flex; flex-direction: column; gap: 4px; margin-top: 18px; padding: 14px 16px; border: 1px solid #ccebd9; border-radius: 14px; background: #eaf8f0; color: #075b40; }
+.profile-balance-card span { font-size: .8rem; font-weight: 700; }
+.profile-balance-card strong { font-size: 1.55rem; line-height: 1.2; }
+.profile-balance-card small { color: #36765e; font-size: .72rem; }
+.profile-shortcuts-card { display: flex; flex-direction: column; gap: 11px; }
+.profile-action-button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 66px; padding: 11px 12px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); color: var(--ink); text-align: left; }
+.profile-action-button:hover { border-color: #9ed8b8; background: var(--page); }
+.profile-action-button > span:nth-child(2) { display: flex; flex: 1; flex-direction: column; gap: 2px; }
+.profile-action-button strong { font-size: .88rem; }
+.profile-action-button small { color: var(--muted); font-size: .74rem; }
+.profile-action-icon { display: grid; place-items: center; width: 37px; height: 37px; border-radius: 11px; background: var(--page); color: var(--green); font-size: 1.2rem; }
+.profile-action-arrow { color: var(--muted); }
+.settings-panel { margin-top: 17px; }
+.settings-heading { margin-bottom: 13px; }
+.theme-setting-row, .delete-account-row { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 15px 0; border-top: 1px solid var(--border); }
+.theme-setting-row strong, .delete-account-row strong { font-size: .9rem; }
+.theme-choice-group { display: flex; flex: 0 0 auto; gap: 6px; }
+.theme-choice { min-width: 76px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--page); color: var(--ink); font-size: .8rem; font-weight: 750; }
+.theme-choice.active { border-color: var(--green); background: var(--green); color: white; }
+.danger-button { padding: 9px 14px; border: 1px solid #efb9b9; border-radius: 9px; background: #fff3f3; color: #b42318; font-size: .82rem; font-weight: 800; }
+.danger-button:hover { background: #ffe4e4; }
+.order-history-section { margin-top: 17px; }
+.order-history-section .history-heading { align-items: flex-start; margin-bottom: 14px; }
+.history-summary-line { margin-top: 6px; }
+.order-detail-expand { margin-top: 13px; border-top: 1px solid var(--border); }
+.order-detail-expand summary { padding-top: 12px; color: var(--green); font-size: .82rem; font-weight: 800; cursor: pointer; }
+.order-detail-content { padding-top: 9px; }
+.order-detail-line { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 13px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: .82rem; }
+.order-detail-line > div { display: flex; flex-direction: column; min-width: 0; }
+.order-detail-line small { color: var(--muted); font-size: .72rem; }
+.order-detail-line > span { color: var(--muted); }
+.order-detail-total, .order-detail-meta { display: flex; justify-content: space-between; gap: 12px; padding-top: 11px; font-size: .84rem; }
+.order-detail-meta { color: var(--muted); font-size: .75rem; }
+.restaurant-reviews-view { padding-bottom: 36px; }
+.restaurant-reviews-view .history-heading { align-items: flex-start; }
+.restaurant-reviews-view .review-form { margin-top: 13px; }
+
+.app-toast { position: fixed; right: 22px; bottom: 22px; z-index: 2000; max-width: min(440px, calc(100% - 32px)); padding: 13px 17px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); color: var(--ink); box-shadow: 0 12px 35px #0e20172a; opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; font-size: .86rem; }
+.app-toast.visible { opacity: 1; transform: translateY(0); }
+
+/* Tamsi tema – CSS kintamieji ir formų / senesnių statinių blokų spalvos. */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #111a16;
+    --surface: #1a2721;
+    --ink: #e8f1eb;
+    --muted: #a7b8ad;
+    --border: #34443b;
+    --green: #39c58a;
+    --green-hover: #28a873;
+    --mint: #244b39;
+}
+:root[data-theme="dark"] body { background: var(--page); color: var(--ink); }
+:root[data-theme="dark"] .site-header,
+:root[data-theme="dark"] .cart-dialog,
+:root[data-theme="dark"] .delivery-screen,
+:root[data-theme="dark"] .review-card,
+:root[data-theme="dark"] .review-form,
+:root[data-theme="dark"] .history-card,
+:root[data-theme="dark"] .profile-card,
+:root[data-theme="dark"] .restaurant-card,
+:root[data-theme="dark"] .account-menu,
+:root[data-theme="dark"] .panel { background: var(--surface); color: var(--ink); }
+:root[data-theme="dark"] .tab[aria-selected="true"],
+:root[data-theme="dark"] .restaurant-menu-action,
+:root[data-theme="dark"] .profile-name-controls button { background: #185b40; color: #eafff2; }
+:root[data-theme="dark"] .restaurant-review-action,
+:root[data-theme="dark"] .restaurant-detail-rating button,
+:root[data-theme="dark"] .profile-back-button,
+:root[data-theme="dark"] .level-back-button,
+:root[data-theme="dark"] .account-language-select,
+:root[data-theme="dark"] .theme-choice,
+:root[data-theme="dark"] .profile-name-controls input,
+:root[data-theme="dark"] .review-form input,
+:root[data-theme="dark"] .review-form select,
+:root[data-theme="dark"] .review-form textarea { background: #111a16; color: var(--ink); border-color: var(--border); }
+:root[data-theme="dark"] .account-menu-item { color: var(--ink); }
+:root[data-theme="dark"] .account-menu-item:hover,
+:root[data-theme="dark"] .profile-action-button:hover { background: #22352b; }
+:root[data-theme="dark"] .profile-action-button { background: var(--surface); color: var(--ink); border-color: var(--border); }
+:root[data-theme="dark"] .profile-action-icon,
+:root[data-theme="dark"] .restaurant-card-art,
+:root[data-theme="dark"] .dish-placeholder { background: #26382e; }
+:root[data-theme="dark"] .profile-balance-card { background: #193b2b; border-color: #286447; color: #d7ffe9; }
+:root[data-theme="dark"] .profile-balance-card small { color: #a6d9bd; }
+:root[data-theme="dark"] .history-status,
+:root[data-theme="dark"] .restaurants-count { background: #214b36; color: #d7ffea; }
+:root[data-theme="dark"] .bar { background: #34483b; }
+:root[data-theme="dark"] .level-button { background: #1a2721; color: var(--ink); border-color: var(--border); }
+:root[data-theme="dark"] .level-button:hover { background: #22352b; }
+:root[data-theme="dark"] .level-overview { background: linear-gradient(135deg, #173b2c, #1d3027 65%, #263a30); }
+:root[data-theme="dark"] .reward-card { background: var(--surface); border-color: var(--border); }
+:root[data-theme="dark"] .cart-line { border-color: var(--border); }
+:root[data-theme="dark"] .cart-remove,
+:root[data-theme="dark"] .cart-qty-button { background: #26382e; color: var(--ink); }
+:root[data-theme="dark"] .cart-dialog-footer { border-color: var(--border); }
+:root[data-theme="dark"] .delivery-header { background: var(--surface); border-color: var(--border); }
+:root[data-theme="dark"] .delivery-back { background: #214b36; color: #d7ffea; }
+:root[data-theme="dark"] .profile-balance-card,
+:root[data-theme="dark"] .level-up-card { box-shadow: 0 10px 30px #00000028; }
+:root[data-theme="dark"] .empty-history { border-color: var(--border); }
+
+@media (max-width: 760px) {
+    .profile-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+    .profile-heading-row { align-items: flex-start; flex-direction: column; }
+    .profile-card { padding: 16px; }
+    .profile-identity { gap: 13px; }
+    .profile-avatar { width: 70px; height: 70px; }
+    .theme-setting-row, .delete-account-row { align-items: flex-start; flex-direction: column; }
+    .profile-name-controls { flex-direction: column; }
+    .profile-name-controls button { width: 100%; }
+    .order-detail-line { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+    .order-detail-line > strong { grid-column: 2; }
+    .restaurant-card-actions { gap: 6px; }
+    .restaurant-menu-action, .restaurant-review-action { padding-inline: 8px; font-size: .72rem; }
+    #boomfood-balansas { padding: 6px 8px; font-size: .72rem; }
+    .account-menu { right: -44px; }
+}
+
+:root[data-theme="dark"] .theme-choice.active { background: var(--green); border-color: var(--green); color: #062719; }
+:root[data-theme="dark"] .danger-button { background: #3a2020; border-color: #704040; color: #ffb6b6; }
+:root[data-theme="dark"] .danger-button:hover { background: #4a2828; }
+
+@media (max-width: 430px) {
+    .header-right { gap: 5px; }
+    .level-button { width: 103px; flex-basis: 103px; padding-inline: 7px; }
+    .level-label { gap: 4px; font-size: .68rem; }
+    .level-label strong { font-size: .72rem; }
+    .level-label strong [data-i18n="level"] { display: none; }
+    #boomfood-balansas { padding: 6px 7px; font-size: .68rem; }
+    .cart-icon-button { width: 35px; height: 35px; }
+}
