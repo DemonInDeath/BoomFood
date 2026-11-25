@@ -149,6 +149,7 @@
             const restaurants = [
                 {
                     id: "lt", name: "Lietuviška Virtuvė", icon: "🥟",
+                    image: "images/restaurants/lietuviska-virtuve.webp",
                     dishes: [
                         { name: "Cepelinai su mėsa", price: 7.9, image: IMG.cepelinai },
                         { name: "Šaltibarščiai", price: 4.8, icon: "🩷" },
@@ -159,6 +160,7 @@
                 },
                 {
                     id: "pizza", name: "Pizza Corner", icon: "🍕",
+                    image: "images/restaurants/pizza-corner.webp",
                     dishes: [
                         { name: "Pica Margarita", price: 9.5, icon: "🍕" },
                         { name: "Pica Pepperoni", price: 10.9, icon: "🍕" },
@@ -169,6 +171,7 @@
                 },
                 {
                     id: "burger", name: "Burger House", icon: "🍔",
+                    image: "images/restaurants/burger-house.webp",
                     dishes: [
                         { name: "Klasikinis burgeris", price: 7.5, icon: "🍔" },
                         { name: "Sūrio burgeris", price: 8.2, icon: "🧀" },
@@ -179,6 +182,7 @@
                 },
                 {
                     id: "sushi", name: "Sushi Point", icon: "🍣",
+                    image: "images/restaurants/sushi-point.webp",
                     dishes: [
                         { name: "Suši rinkinys", price: 12.9, icon: "🍣" },
                         { name: "Kalifornijos ritiniai", price: 9.9, icon: "🍙" },
@@ -189,6 +193,7 @@
                 },
                 {
                     id: "green", name: "Green Bite", icon: "🥗",
+                    image: "images/restaurants/green-bite.webp",
                     dishes: [
                         { name: "Cezario salotos", price: 7.2, icon: "🥗" },
                         { name: "Veganiškas bowl", price: 8.9, icon: "🥙" },
@@ -222,7 +227,9 @@
                 if (count) count.textContent = `${restaurants.length} restoranai`;
                 list.innerHTML = restaurants.map(restaurant => `
                     <button class="restaurant-card" type="button" data-open-restaurant="${escapeHTML(restaurant.id)}" aria-label="Atidaryti ${escapeHTML(restaurant.name)} meniu">
-                        <span class="restaurant-card-art" aria-hidden="true"><span>${restaurant.icon}</span></span>
+                        <span class="restaurant-card-art" aria-hidden="true">
+                            <img src="${escapeHTML(restaurant.image)}" alt="" loading="lazy" decoding="async">
+                        </span>
                         <span class="restaurant-card-content">
                             <span class="restaurant-card-category">${escapeHTML(restaurantCategories[restaurant.id] || "Restoranas")}</span>
                             <strong class="restaurant-card-name">${escapeHTML(restaurant.name)}</strong>
@@ -720,4 +727,3 @@
     }
 
     atnaujintiBalansa();
-
