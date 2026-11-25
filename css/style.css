@@ -1,4 +1,4 @@
-/* BoomFood – stiliai. Blokų eilė išlaikyta dėl CSS taisyklių prioriteto. */
+
 
 /* Pagrindiniai stiliai */
 :root {
@@ -2067,14 +2067,21 @@ button:disabled {
 }
 .restaurant-card:hover { transform: translateY(-3px); border-color: #b9e5cb; box-shadow: 0 10px 24px #17251f12; }
 .restaurant-card:focus-visible, .restaurant-back-button:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+/* Restorano nuotrauka užpildo kairę kortelės dalį, neiškraipant proporcijų. */
 .restaurant-card-art {
-    display: grid; place-items: center; min-height: 164px; overflow: hidden;
-    background: radial-gradient(circle at 35% 30%, #fff 0, #f3fbf6 34%, #d9f1e3 100%);
+    position: relative;
+    min-height: 164px;
+    overflow: hidden;
+    background: var(--mint);
 }
-.restaurant-card-art > span {
-    display: grid; place-items: center; width: 92px; height: 92px;
-    border: 1px solid #ffffffb8; border-radius: 28px; background: #ffffffb8;
-    font-size: 3.2rem; box-shadow: 0 10px 25px #174d3212;
+.restaurant-card-art > img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
 }
 .restaurant-card-content { display: flex; flex-direction: column; align-items: flex-start; padding: 17px 18px; min-width: 0; }
 .restaurant-card-category { color: var(--green); font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
@@ -2105,7 +2112,6 @@ button:disabled {
     .restaurants-count { font-size: .7rem; padding: 6px 8px; }
     .restaurant-card { grid-template-columns: 104px minmax(0, 1fr); min-height: 132px; }
     .restaurant-card-art { min-height: 132px; }
-    .restaurant-card-art > span { width: 70px; height: 70px; border-radius: 22px; font-size: 2.5rem; }
     .restaurant-card-content { padding: 13px 12px; }
     .restaurant-card-name { font-size: .98rem; }
     .restaurant-card-meta { font-size: .7rem; }
