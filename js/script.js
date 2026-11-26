@@ -1,1235 +1,1666 @@
-// BoomFood – naršyklėje veikianti demonstracinė versija.
-// Duomenys saugomi localStorage; tikro serverio, prisijungimo ar mokėjimų nėra.
+// BoomFood – esama naršyklės logika.
 
-(() => {
-    "use strict";
+// Bendras programos būsenos valdymas. Duomenys saugomi šiame įrenginyje,
+// kol projektas neturi serverio / bendros duomenų bazės.
+const STORAGE_KEYS = {
+    cart: "boomfood.cart.v1",
+    history: "boomfood.orderHistory.v1",
+    xp: "boomfood.xp.v1",
+    reviews: "boomfood.reviews.v1",
+    reviewsByRestaurant: "boomfood.reviewsByRestaurant.v1",
+    balance: "boomfood.balance.v1",
+    rewardLevel: "boomfood.rewardedThroughLevel.v1",
+    profile: "boomfood.profile.v1",
+    theme: "boomfood.theme.v1",
+    language: "boomfood.language.v1"
+};
 
-    const STORAGE_KEYS = {
-        cart: "boomfood.cart.v1",
-        history: "boomfood.orderHistory.v1",
-        xp: "boomfood.xp.v1",
-        reviews: "boomfood.restaurantReviews.v2",
-        profile: "boomfood.profile.v1",
-        theme: "boomfood.theme.v1",
-        language: "boomfood.language.v1",
-        balance: "boomfood-balansas",
-        claimedLevels: "boomfood.levelRewards.claimed.v1"
+function readStoredValue(key, fallback) {
+    try {
+        const raw = localStorage.getItem(key);
+        return raw === null ? fallback : JSON.parse(raw);
+    } catch (error) {
+        console.warn(`Nepavyko nuskaityti ${key} iš localStorage:`, error);
+        return fallback;
+    }
+}
+
+function writeStoredValue(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+    } catch (error) {
+        console.warn(`Nepavyko išsaugoti ${key} localStorage:`, error);
+        return false;
+    }
+}
+
+let cart = [];
+let orderHistory = readStoredValue(STORAGE_KEYS.history, []);
+if (!Array.isArray(orderHistory)) orderHistory = [];
+
+let xp = Number(readStoredValue(STORAGE_KEYS.xp, 0));
+if (!Number.isFinite(xp) || xp < 0) xp = 0;
+
+let walletBalance = Number(readStoredValue(
+    STORAGE_KEYS.balance,
+    Number(localStorage.getItem("boomfood-balansas")) || 0
+));
+if (!Number.isFinite(walletBalance) || walletBalance < 0) walletBalance = 0;
+
+const initialLevel = Math.floor(xp / 100) + 1;
+let rewardedThroughLevel = Number(readStoredValue(STORAGE_KEYS.rewardLevel, initialLevel));
+if (!Number.isFinite(rewardedThroughLevel) || rewardedThroughLevel < 1) rewardedThroughLevel = initialLevel;
+
+let profileData = readStoredValue(STORAGE_KEYS.profile, {});
+if (!profileData || typeof profileData !== "object" || Array.isArray(profileData)) profileData = {};
+
+profileData.name = String(profileData.name || "BoomFood User").slice(0, 30);
+profileData.avatar = typeof profileData.avatar === "string" ? profileData.avatar : "";
+profileData.lastNameChangeAt = Number(profileData.lastNameChangeAt) || 0;
+
+let currentLanguage = readStoredValue(STORAGE_KEYS.language, "lt") === "en" ? "en" : "lt";
+let currentTheme = readStoredValue(STORAGE_KEYS.theme, "light") === "dark" ? "dark" : "light";
+let levelUpTimer = null;
+
+function saveWallet() {
+    writeStoredValue(STORAGE_KEYS.balance, walletBalance);
+    localStorage.setItem("boomfood-balansas", String(walletBalance));
+
+    const header = document.getElementById("headerBalance");
+    const profile = document.getElementById("profileBalance");
+
+    if (header) header.textContent = formatReward(walletBalance);
+    if (profile) profile.textContent = formatReward(walletBalance);
+}
+
+function saveProfile() {
+    writeStoredValue(STORAGE_KEYS.profile, profileData);
+}
+
+function showToast(message) {
+    const toast = document.getElementById("appToast");
+    if (!toast) return;
+
+    toast.textContent = message;
+    toast.hidden = false;
+
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => {
+        toast.hidden = true;
+    }, 3200);
+}
+
+const TEXT = {
+    lt: {
+        balance: "Balansas",
+        heroTitle: "Ko norėtum paragauti?",
+        demoNotice: "Tikras maistas nebus pristatytas ir mokėti nereikia.",
+        restaurants: "Restoranai",
+        restaurantHint: "Išsirink restoraną, peržiūrėk jo meniu ir pridėk patiekalus į krepšelį.",
+        profile: "Profilis",
+        logout: "Atsijungti",
+        language: "Kalba",
+        settings: "Nustatymai",
+        account: "BOOMFOOD PASKYRA",
+        changePhoto: "Pakeisti nuotrauką",
+        profileName: "Profilio vardas",
+        saveName: "Išsaugoti vardą",
+        favourites: "Mėgstamiausi",
+        orderHistory: "Užsakymų istorija",
+        backToProfile: "← Grįžti į profilį",
+        preferences: "PREFERENCIJOS",
+        appearance: "Išvaizda",
+        themeHint: "Pasirink šviesią arba tamsią temą.",
+        lightMode: "Šviesi",
+        darkMode: "Tamsi",
+        deleteAccount: "Ištrinti paskyrą",
+        deleteAccountHint: "Ištrins vietinius šios demonstracinės paskyros duomenis.",
+        localDataNotice: "Tai demonstracinė paskyra – duomenys saugomi tik šiame įrenginyje.",
+        walletBalance: "Balansas",
+        levelWalletHint: "Lygio apdovanojimai pridedami prie balanso.",
+        demoBalanceNotice: "Balansas yra demonstracinis ir saugomas šiame įrenginyje.",
+        viewReviews: "Peržiūrėti atsiliepimus",
+        backToRestaurant: "← Grįžti į restoraną",
+        restaurantReviews: "RESTORANO ATSILIEPIMAI",
+        leaveReview: "Palik atsiliepimą",
+        yourName: "Vardas",
+        rating: "Įvertinimas",
+        comment: "Komentaras",
+        publishReview: "Paskelbti atsiliepimą",
+        menu: "Meniu",
+        add: "Pridėti",
+        reviewCount: "atsiliepimų",
+        noReviews: "Atsiliepimų dar nėra.",
+        profileSaved: "Profilio vardas išsaugotas.",
+        cooldown: "Vardą vėl galėsi keisti po",
+        minute: "min.",
+        reviewSaved: "Atsiliepimas pridėtas ir išsaugotas šiame įrenginyje.",
+        deleteConfirm: "Ar tikrai nori ištrinti šios demonstracinės paskyros duomenis? Šio veiksmo atšaukti negalima.",
+        loggedOut: "Demonstracinė sesija uždaryta. Vietiniai duomenys išsaugoti.",
+        photoTooLarge: "Nepavyko paruošti nuotraukos. Pabandyk kitą failą.",
+        historyEmpty: "Kol kas užsakymų nėra. Pasirink patiekalų meniu ir pateik pirmą demonstracinį užsakymą.",
+        order: "Užsakymas",
+        products: "prek.",
+        noName: "Įvesk profilio vardą (2–30 simbolių).",
+        imageOnly: "Pasirink paveikslėlio failą.",
+        backToRestaurants: "← Visi restoranai",
+        back: "← Atgal",
+        levelCenterTitle: "Lygių sistema",
+        levelCenterHint: "Kaupk XP už užsakymus, kelk lygius ir atrakink apdovanojimus.",
+        currentLevel: "DABARTINIS LYGIS",
+        progressToNext: "Progresas iki kito lygio",
+        levelHowTo: "Už pateiktą užsakymą gauni XP, o už pristatytą užsakymą – papildomų XP.",
+        totalXP: "Iš viso sukaupta",
+        allOrderXP: "Visų užsakymų XP",
+        unlockedMilestones: "Atrakinti milestone’ai",
+        milestoneHint: "Kas 5 lygius – didesnis rewardas",
+        rewardPath: "Apdovanojimų kelias",
+        rewardPathHint: "Kiekvienas naujas lygis suteikia demo piniginį apdovanojimą. Kas 5 lygius laukia didesnis milestone’as.",
+        yourCart: "Tavo krepšelis",
+        total: "Iš viso",
+        placeOrder: "Pateikti užsakymą",
+        cartFootnote: "Tai demonstracinis krepšelis – mokėjimas nevykdomas.",
+        backToMenu: "← Grįžti į meniu",
+        emptyCart: "Krepšelis tuščias.",
+        chooseDishes: "Pasirink patiekalus iš meniu.",
+        remove: "Pašalinti",
+        levelNext: "Dar {xp} XP iki {level} lygio.",
+        regularReward: "Lygio apdovanojimas",
+        milestoneReward: "Milestone apdovanojimas",
+        rewardUnlocked: "Apdovanojimas atrakintas",
+        rewardLocked: "Pasiek šį lygį, kad atrakintum",
+        received: "✓ Gauta",
+        locked: "🔒 Užrakinta",
+        orderAccepted: "Užsakymas priimtas",
+        preparing: "Gaminamas",
+        onTheWay: "Pakeliui",
+        delivered: "Pristatytas",
+        preparingDescription: "Virtuvė jau ruošia tavo patiekalus.",
+        onTheWayDescription: "Kurjeris paėmė užsakymą ir jau pakeliui.",
+        deliveredDescription: "Užsakymas pristatytas. Skanaus!",
+        placedDescription: "Tavo užsakymas perduotas virtuvei.",
+        levelRewardMessage: "Apdovanojimas pridėtas prie tavo balanso."
+    },
+    en: {
+        balance: "Balance",
+        heroTitle: "What would you like to try?",
+        demoNotice: "This is a simulation. No real food will be delivered and no payment is required.",
+        restaurants: "Restaurants",
+        restaurantHint: "Choose a restaurant, browse its menu and add dishes to your cart.",
+        profile: "Profile",
+        logout: "Log out",
+        language: "Language",
+        settings: "Settings",
+        account: "BOOMFOOD ACCOUNT",
+        changePhoto: "Change photo",
+        profileName: "Profile name",
+        saveName: "Save name",
+        favourites: "Favourites",
+        orderHistory: "Order history",
+        backToProfile: "← Back to profile",
+        preferences: "PREFERENCES",
+        appearance: "Appearance",
+        themeHint: "Choose light or dark mode.",
+        lightMode: "Light",
+        darkMode: "Dark",
+        deleteAccount: "Delete account",
+        deleteAccountHint: "This deletes the local data for this demo account.",
+        localDataNotice: "This is a demo account – data is stored on this device only.",
+        walletBalance: "Balance",
+        levelWalletHint: "Level rewards are added to your balance.",
+        demoBalanceNotice: "Balance is simulated and stored on this device.",
+        viewReviews: "View reviews",
+        backToRestaurant: "← Back to restaurant",
+        restaurantReviews: "RESTAURANT REVIEWS",
+        leaveReview: "Leave a review",
+        yourName: "Name",
+        rating: "Rating",
+        comment: "Comment",
+        publishReview: "Post review",
+        menu: "Menu",
+        add: "Add",
+        reviewCount: "reviews",
+        noReviews: "No reviews yet.",
+        profileSaved: "Profile name saved.",
+        cooldown: "You can change your name again in",
+        minute: "min.",
+        reviewSaved: "Review added and saved on this device.",
+        deleteConfirm: "Delete this demo account's local data? This cannot be undone.",
+        loggedOut: "Demo session closed. Local data was kept.",
+        photoTooLarge: "Could not process this photo. Try another file.",
+        historyEmpty: "No orders yet. Choose dishes from a menu and place your first demo order.",
+        order: "Order",
+        products: "items",
+        noName: "Enter a profile name (2–30 characters).",
+        imageOnly: "Choose an image file.",
+        backToRestaurants: "← All restaurants",
+        back: "← Back",
+        levelCenterTitle: "Level system",
+        levelCenterHint: "Earn XP from orders, level up and unlock rewards.",
+        currentLevel: "CURRENT LEVEL",
+        progressToNext: "Progress to next level",
+        levelHowTo: "You earn XP when placing an order and extra XP when it is delivered.",
+        totalXP: "Total XP earned",
+        allOrderXP: "XP from all orders",
+        unlockedMilestones: "Unlocked milestones",
+        milestoneHint: "Every 5 levels unlocks a bigger reward",
+        rewardPath: "Reward path",
+        rewardPathHint: "Each new level gives a demo wallet reward. Every 5 levels unlocks a bigger milestone.",
+        yourCart: "Your cart",
+        total: "Total",
+        placeOrder: "Place order",
+        cartFootnote: "This is a demo cart – no payment is processed.",
+        backToMenu: "← Back to menu",
+        emptyCart: "Your cart is empty.",
+        chooseDishes: "Choose dishes from a menu.",
+        remove: "Remove",
+        levelNext: "{xp} XP left to level {level}.",
+        regularReward: "Level reward",
+        milestoneReward: "Milestone reward",
+        rewardUnlocked: "Reward unlocked",
+        rewardLocked: "Reach this level to unlock",
+        received: "✓ Received",
+        locked: "🔒 Locked",
+        orderAccepted: "Order received",
+        preparing: "Preparing",
+        onTheWay: "On the way",
+        delivered: "Delivered",
+        preparingDescription: "The kitchen is preparing your dishes.",
+        onTheWayDescription: "The courier picked up your order and is on the way.",
+        deliveredDescription: "Your order has been delivered. Enjoy!",
+        placedDescription: "Your order has been sent to the kitchen.",
+        levelRewardMessage: "The reward was added to your balance."
+    }
+};
+
+function t(key) {
+    return TEXT[currentLanguage]?.[key] || TEXT.lt[key] || key;
+}
+
+function applyLanguage() {
+    document.documentElement.lang = currentLanguage;
+
+    document.querySelectorAll("[data-i18n]").forEach(node => {
+        const value = t(node.dataset.i18n);
+        if (value) node.textContent = value;
+    });
+
+    const languageSelect = document.getElementById("languageSelect");
+    if (languageSelect) languageSelect.value = currentLanguage;
+
+    const reviewNameInput = document.getElementById("reviewName");
+    const reviewTextInput = document.getElementById("reviewText");
+    const profileNameInput = document.getElementById("profileNameInput");
+
+    if (reviewNameInput) reviewNameInput.placeholder = currentLanguage === "en" ? "Your name" : "Tavo vardas";
+    if (reviewTextInput) reviewTextInput.placeholder = currentLanguage === "en" ? "Share your thoughts..." : "Pasidalink savo nuomone...";
+    if (profileNameInput) profileNameInput.placeholder = currentLanguage === "en" ? "Your name" : "Tavo vardas";
+
+    const ratingOptions = document.querySelectorAll("#reviewRating option");
+    const ratingLabels = currentLanguage === "en"
+        ? ["Excellent", "Good", "Average", "Poor", "Bad"]
+        : ["Puikiai", "Gerai", "Vidutiniškai", "Prastai", "Blogai"];
+
+    ratingOptions.forEach((option, index) => {
+        option.textContent = `${"★".repeat(5 - index)}${"☆".repeat(index)} – ${ratingLabels[index]}`;
+    });
+
+    renderRestaurants();
+    renderHistory();
+    renderProfile();
+    renderLevelUI();
+
+    if (!document.getElementById("menuView").hidden) renderMenu();
+    if (!document.getElementById("reviewsView").hidden) renderRestaurantReviews();
+}
+
+function applyTheme() {
+    document.documentElement.dataset.theme = currentTheme;
+    document.getElementById("lightThemeButton")?.classList.toggle("selected", currentTheme === "light");
+    document.getElementById("darkThemeButton")?.classList.toggle("selected", currentTheme === "dark");
+    writeStoredValue(STORAGE_KEYS.theme, currentTheme);
+}
+
+function saveXP() {
+    writeStoredValue(STORAGE_KEYS.xp, xp);
+    const status = document.getElementById("xpSaveStatus");
+    if (status) status.textContent = "Pažanga išsaugoma automatiškai šiame įrenginyje.";
+}
+
+const stepNames = [
+    "Užsakymas priimtas",
+    "Gaminamas",
+    "Pakeliui",
+    "Pristatytas"
+];
+
+function getLocalizedStepNames() {
+    return currentLanguage === "en"
+        ? [t("orderAccepted"), t("preparing"), t("onTheWay"), t("delivered")]
+        : stepNames;
+}
+
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, character => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[character]);
+}
+
+function saveHistory() {
+    writeStoredValue(STORAGE_KEYS.history, orderHistory);
+}
+
+function renderHistory() {
+    const list = document.getElementById("historyList");
+    const count = document.getElementById("historyCount");
+
+    if (!list || !count) return;
+
+    const totalOrders = orderHistory.length;
+
+    count.textContent = `${totalOrders} ${
+        currentLanguage === "en"
+            ? (totalOrders === 1 ? "order" : "orders")
+            : (totalOrders === 1 ? "užsakymas" : "užsakymų")
+    }`;
+
+    if (!totalOrders) {
+        list.innerHTML = `<div class="empty-history">${t("historyEmpty")}</div>`;
+        return;
+    }
+
+    list.innerHTML = orderHistory.map(order => {
+        const parsedDate = new Date(order.createdAt);
+        const dateLabel = Number.isNaN(parsedDate.getTime())
+            ? "—"
+            : new Intl.DateTimeFormat(
+                currentLanguage === "en" ? "en-GB" : "lt-LT",
+                { dateStyle: "medium", timeStyle: "short" }
+            ).format(parsedDate);
+
+        const lines = Array.isArray(order.items)
+            ? order.items.map(item => {
+                const quantity = Math.max(1, Number(item.quantity) || 1);
+                return `<li><span>${escapeHTML(item.name)} ×${quantity}</span><strong>${formatMoney((Number(item.price) || 0) * quantity)}</strong></li>`;
+            }).join("")
+            : "";
+
+        const itemCount = Array.isArray(order.items)
+            ? order.items.reduce((sum, item) => sum + Math.max(1, Number(item.quantity) || 1), 0)
+            : 0;
+
+        const restaurantNames = [...new Set(
+            (order.items || []).map(item => item.restaurant).filter(Boolean)
+        )].join(", ");
+
+        return `<details class="history-card history-detail">
+            <summary class="history-summary">
+                <span class="history-summary-main">
+                    <span class="history-id">${t("order")} #${escapeHTML(order.id)}</span>
+                    <span class="history-date">${escapeHTML(dateLabel)}</span>
+                </span>
+                <span class="history-summary-right">
+                    <span class="history-status">${escapeHTML(
+                        Number.isInteger(order.statusIndex)
+                            ? getLocalizedStepNames()[Math.min(3, Math.max(0, order.statusIndex))]
+                            : (
+                                currentLanguage === "en"
+                                    ? ({
+                                        "Užsakymas priimtas": "Order received",
+                                        "Gaminamas": "Preparing",
+                                        "Pakeliui": "On the way",
+                                        "Pristatytas": "Delivered"
+                                    }[order.status] || order.status)
+                                    : (order.status || stepNames[0])
+                            )
+                    )}</span>
+                    <strong class="history-total">${formatMoney(Number(order.total) || 0)}</strong>
+                    <span class="history-chevron" aria-hidden="true">⌄</span>
+                </span>
+            </summary>
+            <div class="history-detail-body">
+                ${restaurantNames ? `<p class="history-restaurant">${escapeHTML(restaurantNames)}</p>` : ""}
+                <ul class="history-items">${lines}</ul>
+                <div class="history-bottom">
+                    <span class="history-date">${itemCount} ${t("products")}</span>
+                    <strong class="history-total">${formatMoney(Number(order.total) || 0)}</strong>
+                </div>
+            </div>
+        </details>`;
+    }).join("");
+}
+
+function renderProfile() {
+    const name = document.getElementById("profileNameDisplay");
+    const input = document.getElementById("profileNameInput");
+    const summary = document.getElementById("profileLevelSummary");
+    const headerAvatar = document.getElementById("headerAvatar");
+    const avatarInitial = document.getElementById("profileAvatarInitial");
+    const avatarImage = document.getElementById("profileAvatarImage");
+
+    if (name) name.textContent = profileData.name;
+    if (input && document.activeElement !== input) input.value = profileData.name;
+
+    if (summary) {
+        summary.textContent = `${getCurrentLevel()} ${currentLanguage === "en" ? "level" : "lygis"} · ${xp.toLocaleString("lt-LT")} XP`;
+    }
+
+    if (headerAvatar) {
+        if (profileData.avatar) {
+            headerAvatar.innerHTML = `<img src="${profileData.avatar}" alt="">`;
+        } else {
+            headerAvatar.textContent = (profileData.name.trim()[0] || "B").toUpperCase();
+        }
+    }
+
+    if (avatarInitial) {
+        avatarInitial.textContent = (profileData.name.trim()[0] || "B").toUpperCase();
+    }
+
+    if (avatarImage) {
+        if (profileData.avatar) {
+            avatarImage.src = profileData.avatar;
+            avatarImage.hidden = false;
+            if (avatarInitial) avatarInitial.hidden = true;
+        } else {
+            avatarImage.removeAttribute("src");
+            avatarImage.hidden = true;
+            if (avatarInitial) avatarInitial.hidden = false;
+        }
+    }
+
+    const balance = document.getElementById("profileBalance");
+    if (balance) balance.textContent = formatReward(walletBalance);
+
+    updateNameCooldown();
+}
+
+function updateNameCooldown() {
+    const hint = document.getElementById("nameCooldown");
+    const saveButton = document.getElementById("saveProfileName");
+
+    if (!hint || !saveButton) return;
+
+    const remaining = Math.max(
+        0,
+        30 * 60 * 1000 - (Date.now() - profileData.lastNameChangeAt)
+    );
+
+    saveButton.disabled = remaining > 0;
+
+    if (remaining > 0) {
+        const mins = Math.ceil(remaining / 60000);
+        hint.textContent = `${t("cooldown")} ${mins} ${t("minute")}`;
+    } else {
+        hint.textContent = currentLanguage === "en"
+            ? "You can update your profile name every 30 minutes."
+            : "Vardą galima keisti kas 30 minučių.";
+    }
+}
+
+function setTab(viewName) {
+    const views = {
+        menu: "menuView",
+        restaurants: "restaurantsView",
+        reviews: "reviewsView",
+        profile: "profileView",
+        settings: "settingsView",
+        level: "levelView"
     };
 
-    const NAME_COOLDOWN_MS = 30 * 60 * 1000;
-    const DEFAULT_PROFILE = { name: "BoomFood naudotojas", picture: "", nameLastChangedAt: 0 };
+    if (!Object.prototype.hasOwnProperty.call(views, viewName)) return;
 
-    function readStoredValue(key, fallback) {
-        try {
-            const raw = localStorage.getItem(key);
-            return raw === null ? fallback : JSON.parse(raw);
-        } catch (error) {
-            console.warn(`Nepavyko nuskaityti ${key} iš localStorage:`, error);
-            return fallback;
-        }
+    Object.entries(views).forEach(([name, id]) => {
+        const view = document.getElementById(id);
+        if (view) view.hidden = name !== viewName;
+    });
+
+    const hero = document.querySelector(".hero");
+    const tabs = document.querySelector(".tabs");
+
+    if (hero) hero.hidden = viewName !== "restaurants";
+
+    // Restorano meniu yra atskiras ekranas su mygtuku grįžti į katalogą.
+    if (tabs) {
+        tabs.hidden = ["profile", "settings", "level", "menu", "reviews"].includes(viewName);
     }
 
-    function writeStoredValue(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-            return true;
-        } catch (error) {
-            console.warn(`Nepavyko išsaugoti ${key} localStorage:`, error);
-            return false;
-        }
-    }
+    document.querySelectorAll(".tab[data-tab]").forEach(button => {
+        button.setAttribute("aria-selected", String(button.dataset.tab === viewName));
+    });
 
-    function escapeHTML(value) {
-        return String(value ?? "").replace(/[&<>"']/g, character => ({
-            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-        })[character]);
-    }
-
-    const I18N = {
-        lt: {
-            pageTitle: "Ko norėtum paragauti?",
-            simulationNotice: "Tai simuliacija. Tikras maistas nebus pristatytas ir mokėti nereikia.",
-            discoverFlavours: "BOOMFOOD · ATRASK SKONIUS",
-            restaurants: "Restoranai",
-            restaurantsDescription: "Išsirink restoraną, peržiūrėk jo meniu ir pridėk patiekalus į krepšelį.",
-            profile: "Profilis", logout: "Atsijungti", language: "Kalba", level: "Lygis",
-            backToRestaurants: "← Visi restoranai", menu: "Meniu", viewMenu: "Peržiūrėti meniu",
-            reviews: "Atsiliepimai", reviewCount: "atsiliepimų", dishes: "patiekalai",
-            restaurantReviewsEyebrow: "BOOMFOOD · KLIENTŲ NUOMONĖS", restaurantReviews: "Restorano atsiliepimai",
-            leaveReview: "Palik atsiliepimą", yourName: "Vardas", namePlaceholder: "Tavo vardas",
-            rating: "Įvertinimas", comment: "Komentaras", reviewPlaceholder: "Pasidalink savo nuomone...",
-            publishReview: "Paskelbti atsiliepimą", noReviews: "Šis restoranas dar neturi atsiliepimų.",
-            reviewAdded: "Atsiliepimas pridėtas ir išsaugotas šiame įrenginyje.",
-            reviewValidation: "Užpildyk visus laukus ir pasirink įvertinimą.",
-            profileSubtitle: "Tvarkyk savo paskyrą, nustatymus ir peržiūrėk užsakymus.",
-            accountOverview: "BOOMFOOD · PASKYRA", yourAccount: "TAVO PASKYRA",
-            changePhoto: "Keisti nuotrauką", profileDetails: "Profilio informacija", profileName: "Profilio vardas",
-            save: "Išsaugoti", nameSaved: "Profilio vardas atnaujintas.",
-            nameCooldown: "Vardą galėsi keisti po {time}.", nameAvailable: "Vardą gali keisti dabar.",
-            nameSame: "Įvesk kitą vardą.", nameInvalid: "Vardas turi būti 2–30 simbolių.",
-            photoInvalid: "Pasirink tinkamą paveikslėlį.", photoTooLarge: "Nuotrauka per didelė. Pasirink failą iki 8 MB.",
-            photoSaved: "Profilio nuotrauka atnaujinta.", photoError: "Nepavyko apdoroti nuotraukos.",
-            demoBalance: "Demonstracinis balansas", balanceDisclaimer: "Balansas pildomas lygio apdovanojimais. Tikri mokėjimai nevykdomi.",
-            quickActions: "Greiti veiksmai", favorites: "Mėgstamiausi", comingSoon: "Jau greitai",
-            settings: "Nustatymai", themeAndAccount: "Tema ir paskyra", appearanceSettings: "Pasirink svetainės išvaizdą.",
-            theme: "Tema", themeDescription: "Pasirink šviesų arba tamsų režimą.", lightMode: "Šviesi", darkMode: "Tamsi",
-            deleteAccount: "Ištrinti paskyrą", deleteAccountDescription: "Ištrins vietinius profilio, balanso, krepšelio ir užsakymų duomenis.", delete: "Ištrinti",
-            deleteConfirm: "Ar tikrai ištrinti šios demonstracinės paskyros duomenis šiame įrenginyje? Veiksmo atšaukti nepavyks.",
-            accountDeleted: "Vietiniai demonstracinės paskyros duomenys ištrinti.",
-            favoritesNotice: "Mėgstamiausių restoranų funkcija bus pridėta vėliau.",
-            logoutNotice: "Tai demonstracinė svetainė be tikros prisijungimo sesijos. Grįžai į restoranų katalogą; duomenys išsaugoti.",
-            orderHistory: "Užsakymų istorija", orderHistorySubtitle: "Peržiūrėk ankstesnius užsakymus ir jų detales.",
-            orders: "užsakymų", order: "užsakymas", noOrders: "Kol kas užsakymų nėra. Pasirink patiekalų meniu ir pateik pirmą demonstracinį užsakymą.",
-            orderDetails: "Peržiūrėti užsakymą", hideDetails: "Slėpti detales", orderNumber: "Užsakymas",
-            items: "prek.", subtotal: "Suma", total: "Iš viso", status: "Būsena", restaurant: "Restoranas",
-            yourCart: "Tavo krepšelis", placeOrder: "Pateikti užsakymą", cartDisclaimer: "Tai demonstracinis krepšelis – mokėjimas nevykdomas.",
-            cartEmpty: "Krepšelis tuščias.", chooseDishes: "Pasirink patiekalus iš meniu.",
-            add: "Pridėti", remove: "Pašalinti", increase: "Padidinti", decrease: "Sumažinti", perItem: "vnt.",
-            levelSystem: "Lygių sistema", levelSubtitle: "Kaupk XP už užsakymus, kelk lygius ir atrakink apdovanojimus.",
-            currentLevel: "DABARTINIS LYGIS", progressToNext: "Progresas iki kito lygio", nextLevel: "Dar {xp} XP iki {level} lygio.",
-            howToEarn: "Už pateiktą užsakymą gauni XP, o už pristatytą užsakymą – papildomų XP.",
-            totalXP: "Iš viso sukaupta", allOrderXP: "Visų užsakymų XP", rewardBalance: "Balansas",
-            unlockedMilestones: "Atrakinti milestone’ai", everyFiveLevels: "Kas 5 lygius – didesnis rewardas",
-            rewardPath: "Apdovanojimų kelias", rewardPathDescription: "Kiekvienas naujas lygis suteikia piniginį apdovanojimą. Kas 5 lygius laukia didesnis milestone’as.",
-            demoRewards: "DEMO APDOVANOJIMAI", levelReward: "Lygio apdovanojimas", milestoneReward: "Milestone apdovanojimas",
-            rewardUnlocked: "Apdovanojimas gautas", reachLevel: "Pasiek šį lygį, kad atrakintum", received: "✓ Gauta", locked: "🔒 Užrakinta",
-            levelDisclaimer: "Visos sumos yra demonstracinės. Balansas saugomas tik šiame įrenginyje.",
-            savedOnDevice: "Pažanga išsaugoma automatiškai šiame įrenginyje.",
-            back: "← Atgal", orderAccepted: "Užsakymas priimtas", preparing: "Gaminamas", onTheWay: "Pakeliui", delivered: "Pristatytas",
-            stepAccepted: "Tavo užsakymas perduotas virtuvei.", stepPreparing: "Virtuvė jau ruošia tavo patiekalus.",
-            stepOnTheWay: "Kurjeris paėmė užsakymą ir jau pakeliui.", stepDelivered: "Užsakymas pristatytas. Skanaus!",
-            orderProgress: "Užsakymo eiga", orderAmount: "Užsakymo suma", backToMenu: "← Grįžti į meniu", finish: "Grįžti į meniu", great: "Puiku!",
-            levelUpTitle: "Naujas lygis pasiektas!", levelUpSingle: "Gavai {amount} į demonstracinį balansą!",
-            levelUpMultiple: "Peršokai {levels} lygius ir gavai {amount} demo rewardų!",
-            logout: "Atsijungti", photoUpload: "Profilio nuotrauka", stars: "žvaigždutės"
-        },
-        en: {
-            pageTitle: "What are you craving today?",
-            simulationNotice: "This is a simulation. No real food will be delivered and no payment is required.",
-            discoverFlavours: "BOOMFOOD · DISCOVER NEW FLAVOURS",
-            restaurants: "Restaurants",
-            restaurantsDescription: "Choose a restaurant, explore its menu and add dishes to your cart.",
-            profile: "Profile", logout: "Log out", language: "Language", level: "Level",
-            backToRestaurants: "← All restaurants", menu: "Menu", viewMenu: "View menu",
-            reviews: "Reviews", reviewCount: "reviews", dishes: "dishes",
-            restaurantReviewsEyebrow: "BOOMFOOD · CUSTOMER FEEDBACK", restaurantReviews: "Restaurant reviews",
-            leaveReview: "Leave a review", yourName: "Name", namePlaceholder: "Your name",
-            rating: "Rating", comment: "Comment", reviewPlaceholder: "Share your experience...",
-            publishReview: "Post review", noReviews: "This restaurant has no reviews yet.",
-            reviewAdded: "Your review was added and saved on this device.",
-            reviewValidation: "Complete all fields and choose a rating.",
-            profileSubtitle: "Manage your profile, settings and order history.",
-            accountOverview: "BOOMFOOD · ACCOUNT", yourAccount: "YOUR ACCOUNT",
-            changePhoto: "Change photo", profileDetails: "Profile details", profileName: "Profile name",
-            save: "Save", nameSaved: "Profile name updated.",
-            nameCooldown: "You can change your name in {time}.", nameAvailable: "You can change your name now.",
-            nameSame: "Enter a different name.", nameInvalid: "Name must be 2–30 characters.",
-            photoInvalid: "Choose a valid image.", photoTooLarge: "The image is too large. Choose a file up to 8 MB.",
-            photoSaved: "Profile picture updated.", photoError: "Could not process this image.",
-            demoBalance: "Demo balance", balanceDisclaimer: "Your balance increases through level rewards. No real payments are made.",
-            quickActions: "Quick actions", favorites: "Favourites", comingSoon: "Coming soon",
-            settings: "Settings", themeAndAccount: "Theme and account", appearanceSettings: "Choose how the website looks.",
-            theme: "Theme", themeDescription: "Choose light or dark mode.", lightMode: "Light", darkMode: "Dark",
-            deleteAccount: "Delete account", deleteAccountDescription: "Deletes local profile, balance, cart and order data.", delete: "Delete",
-            deleteConfirm: "Delete this demo account's data from this device? This action cannot be undone.",
-            accountDeleted: "Local demo account data has been deleted.",
-            favoritesNotice: "The favourites feature will be added later.",
-            logoutNotice: "This demo website has no real sign-in session. You are back at the restaurant list; your data is saved.",
-            orderHistory: "Order history", orderHistorySubtitle: "Review previous orders and their details.",
-            orders: "orders", order: "order", noOrders: "No orders yet. Choose dishes from a menu and place your first demo order.",
-            orderDetails: "View order", hideDetails: "Hide details", orderNumber: "Order",
-            items: "items", subtotal: "Total", total: "Total", status: "Status", restaurant: "Restaurant",
-            yourCart: "Your cart", placeOrder: "Place order", cartDisclaimer: "This is a demo cart — no payment is processed.",
-            cartEmpty: "Your cart is empty.", chooseDishes: "Choose dishes from a menu.",
-            add: "Add", remove: "Remove", increase: "Increase", decrease: "Decrease", perItem: "each",
-            levelSystem: "Levels", levelSubtitle: "Earn XP with orders, level up and unlock rewards.",
-            currentLevel: "CURRENT LEVEL", progressToNext: "Progress to next level", nextLevel: "{xp} XP to level {level}.",
-            howToEarn: "Earn XP when placing an order and additional XP when it is delivered.",
-            totalXP: "Total earned", allOrderXP: "XP from all orders", rewardBalance: "Balance",
-            unlockedMilestones: "Milestones unlocked", everyFiveLevels: "A bigger reward every 5 levels",
-            rewardPath: "Reward path", rewardPathDescription: "Each new level gives a cash reward. Every 5 levels unlocks a bigger milestone.",
-            demoRewards: "DEMO REWARDS", levelReward: "Level reward", milestoneReward: "Milestone reward",
-            rewardUnlocked: "Reward received", reachLevel: "Reach this level to unlock", received: "✓ Received", locked: "🔒 Locked",
-            levelDisclaimer: "All amounts are for demonstration. Your balance is stored only on this device.",
-            savedOnDevice: "Progress is automatically saved on this device.",
-            back: "← Back", orderAccepted: "Order accepted", preparing: "Preparing", onTheWay: "On the way", delivered: "Delivered",
-            stepAccepted: "Your order has been sent to the kitchen.", stepPreparing: "The kitchen is preparing your food.",
-            stepOnTheWay: "The courier picked up your order and is on the way.", stepDelivered: "Your order has been delivered. Enjoy!",
-            orderProgress: "Order progress", orderAmount: "Order total", backToMenu: "← Back to menu", finish: "Back to menu", great: "Great!",
-            levelUpTitle: "Level up!", levelUpSingle: "You received {amount} in your demo balance!",
-            levelUpMultiple: "You gained {levels} levels and received {amount} in demo rewards!",
-            photoUpload: "Profile picture", stars: "stars"
-        }
-    };
-
-    let language = localStorage.getItem(STORAGE_KEYS.language) === "en" ? "en" : "lt";
-    let theme = localStorage.getItem(STORAGE_KEYS.theme) === "dark" ? "dark" : "light";
-    let profile = readStoredValue(STORAGE_KEYS.profile, { ...DEFAULT_PROFILE });
-    if (!profile || typeof profile !== "object") profile = { ...DEFAULT_PROFILE };
-    profile = { ...DEFAULT_PROFILE, ...profile };
-
-    function t(key, values = {}) {
-        let output = (I18N[language] && I18N[language][key]) || I18N.lt[key] || key;
-        Object.entries(values).forEach(([name, value]) => {
-            output = output.replaceAll(`{${name}}`, String(value));
-        });
-        return output;
-    }
-
-    function applyLanguage() {
-        document.documentElement.lang = language;
-        document.querySelectorAll("[data-i18n]").forEach(element => {
-            const key = element.dataset.i18n;
-            if (I18N[language][key]) element.textContent = t(key);
-        });
-        document.querySelectorAll("[data-i18n-placeholder]").forEach(element => {
-            const key = element.dataset.i18nPlaceholder;
-            if (I18N[language][key]) element.placeholder = t(key);
-        });
-        const langSelect = document.getElementById("languageSelect");
-        if (langSelect) langSelect.value = language;
-        const ratingSelect = document.getElementById("reviewRating");
-        if (ratingSelect) {
-            ratingSelect.innerHTML = language === "lt"
-                ? '<option value="5">★★★★★ – Puikiai</option><option value="4">★★★★☆ – Gerai</option><option value="3">★★★☆☆ – Vidutiniškai</option><option value="2">★★☆☆☆ – Prastai</option><option value="1">★☆☆☆☆ – Blogai</option>'
-                : '<option value="5">★★★★★ – Excellent</option><option value="4">★★★★☆ – Good</option><option value="3">★★★☆☆ – Average</option><option value="2">★★☆☆☆ – Poor</option><option value="1">★☆☆☆☆ – Bad</option>';
-        }
-        const levelOverline = document.querySelector(".level-overline");
-        if (levelOverline) levelOverline.textContent = language === "lt" ? "BOOMFOOD RANK" : "BOOMFOOD RANK";
-        const progressFoot = document.querySelector(".level-progress-foot");
-        if (progressFoot) {
-            progressFoot.children[0].textContent = "0 XP";
-            progressFoot.children[1].textContent = "100 XP";
-        }
-        const avatarButton = document.getElementById("profileButton");
-        if (avatarButton) {
-            avatarButton.title = language === "lt" ? "Paskyra" : "Account";
-            avatarButton.setAttribute("aria-label", language === "lt" ? "Atidaryti paskyros meniu" : "Open account menu");
-        }
-        document.getElementById("cartButton")?.setAttribute("aria-label", language === "lt" ? "Atidaryti krepšelį" : "Open cart");
-        document.getElementById("cartClose")?.setAttribute("aria-label", language === "lt" ? "Uždaryti krepšelį" : "Close cart");
-        document.getElementById("levelButton")?.setAttribute("aria-label", language === "lt" ? "Atidaryti lygių sistemą" : "Open level system");
-        document.getElementById("homeButton")?.setAttribute("aria-label", language === "lt" ? "BoomFood – grįžti į pagrindinį puslapį" : "BoomFood – go to home page");
-        document.getElementById("profileAvatarPreview")?.setAttribute("aria-label", t("photoUpload"));
-        renderRestaurants();
-        renderMenu();
-        renderRestaurantReviews();
+    if (viewName === "profile") {
+        renderProfile();
         renderHistory();
-        renderCart();
-        renderLevelUI();
-        if (!document.getElementById("profileView").hidden) renderProfile();
-        if (!document.getElementById("levelView").hidden) renderLevelCenter();
-        updateDeliveryLanguage();
     }
 
-    function applyTheme() {
-        document.documentElement.dataset.theme = theme;
-        document.documentElement.style.colorScheme = theme;
-        localStorage.setItem(STORAGE_KEYS.theme, theme);
-        document.querySelectorAll("[data-theme-choice]").forEach(button => {
-            button.classList.toggle("active", button.dataset.themeChoice === theme);
-            button.setAttribute("aria-pressed", String(button.dataset.themeChoice === theme));
-        });
-        document.getElementById("profileBalance") && (document.getElementById("profileBalance").textContent = formatMoney(balance));
+    if (viewName === "reviews") renderRestaurantReviews();
+    if (viewName === "settings") applyTheme();
+    if (viewName === "level") renderLevelCenter();
+    if (viewName === "restaurants") renderRestaurants();
+}
+
+function goHome() {
+    const delivery = document.getElementById("deliveryOverlay");
+    const cartOverlay = document.getElementById("cartOverlay");
+
+    if (delivery && !delivery.hidden) {
+        closeDelivery();
+        return;
     }
 
-    function showToast(message) {
-        let toast = document.getElementById("appToast");
-        if (!toast) {
-            toast = document.createElement("div");
-            toast.id = "appToast";
-            toast.className = "app-toast";
-            toast.setAttribute("role", "status");
-            document.body.appendChild(toast);
-        }
-        toast.textContent = message;
-        toast.classList.add("visible");
-        clearTimeout(showToast.timer);
-        showToast.timer = setTimeout(() => toast.classList.remove("visible"), 3200);
-    }
+    if (cartOverlay && !cartOverlay.hidden) closeCart();
 
-    const stepNames = ["Užsakymas priimtas", "Gaminamas", "Pakeliui", "Pristatytas"];
-    function translatedStep(index) {
-        return [t("orderAccepted"), t("preparing"), t("onTheWay"), t("delivered")][index] || t("orderAccepted");
-    }
-    function translatedStepDescription(index) {
-        return [t("stepAccepted"), t("stepPreparing"), t("stepOnTheWay"), t("stepDelivered")][index] || "";
-    }
-    function statusIndex(status) {
-        const index = stepNames.indexOf(status);
-        return index >= 0 ? index : 0;
-    }
-    function formatMoney(value) {
-        return Number(value || 0).toLocaleString(language === "lt" ? "lt-LT" : "en-IE", {
-            minimumFractionDigits: 2, maximumFractionDigits: 2
-        }) + " €";
-    }
-    function formatReward(value) {
-        return "€" + Number(value || 0).toLocaleString(language === "lt" ? "lt-LT" : "en-IE");
-    }
-    function formatDate(value) {
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return language === "lt" ? "Data nenurodyta" : "Date unavailable";
-        return new Intl.DateTimeFormat(language === "lt" ? "lt-LT" : "en-GB", {
-            dateStyle: "medium", timeStyle: "short"
-        }).format(date);
-    }
+    hideLevelUp();
+    setTab("restaurants");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
-    // Restoranų katalogas ir meniu.
-    const IMG = { cepelinai: "images/cepelinai.webp" };
-    const restaurants = [
-        {
-            id: "lt", name: "Lietuviška Virtuvė", nameEn: "Lithuanian Kitchen", icon: "🥟",
-            image: "images/restaurants/lietuviska-virtuve.webp",
-            category: "Lietuviška virtuvė", categoryEn: "Lithuanian cuisine",
-            dishes: [
-                { name: "Cepelinai su mėsa", nameEn: "Potato dumplings with meat", price: 7.9, image: IMG.cepelinai },
-                { name: "Šaltibarščiai", nameEn: "Cold beet soup", price: 4.8, icon: "🩷" },
-                { name: "Bulvių kugelis", nameEn: "Potato pudding", price: 6.5, icon: "🥔" },
-                { name: "Kibinai (3 vnt.)", nameEn: "Kibinai (3 pcs)", price: 5.9, icon: "🥟" },
-                { name: "Bulviniai blynai", nameEn: "Potato pancakes", price: 6.2, icon: "🥞" }
-            ]
-        },
-        {
-            id: "pizza", name: "Pizza Corner", nameEn: "Pizza Corner", icon: "🍕",
-            image: "images/restaurants/pizza-corner.webp",
-            category: "Picos ir itališki skoniai", categoryEn: "Pizza & Italian",
-            dishes: [
-                { name: "Pica Margarita", nameEn: "Margherita pizza", price: 9.5, icon: "🍕" },
-                { name: "Pica Pepperoni", nameEn: "Pepperoni pizza", price: 10.9, icon: "🍕" },
-                { name: "Pica Keturi sūriai", nameEn: "Four cheese pizza", price: 11.5, icon: "🧀" },
-                { name: "Pica Hawaii", nameEn: "Hawaiian pizza", price: 10.5, icon: "🍍" },
-                { name: "Calzone", nameEn: "Calzone", price: 9.9, icon: "🥟" }
-            ]
-        },
-        {
-            id: "burger", name: "Burger House", nameEn: "Burger House", icon: "🍔",
-            image: "images/restaurants/burger-house.webp",
-            category: "Mėsainiai", categoryEn: "Burgers",
-            dishes: [
-                { name: "Klasikinis burgeris", nameEn: "Classic burger", price: 7.5, icon: "🍔" },
-                { name: "Sūrio burgeris", nameEn: "Cheeseburger", price: 8.2, icon: "🧀" },
-                { name: "Bekono burgeris", nameEn: "Bacon burger", price: 8.9, icon: "🥓" },
-                { name: "Vištienos burgeris", nameEn: "Chicken burger", price: 7.9, icon: "🍗" },
-                { name: "Veggie burgeris", nameEn: "Veggie burger", price: 7.8, icon: "🥬" }
-            ]
-        },
-        {
-            id: "sushi", name: "Sushi Point", nameEn: "Sushi Point", icon: "🍣",
-            image: "images/restaurants/sushi-point.webp",
-            category: "Sušiai ir azijietiški patiekalai", categoryEn: "Sushi & Asian cuisine",
-            dishes: [
-                { name: "Suši rinkinys", nameEn: "Sushi set", price: 12.9, icon: "🍣" },
-                { name: "Kalifornijos ritiniai", nameEn: "California rolls", price: 9.9, icon: "🍙" },
-                { name: "Lašišos nigiri (4 vnt.)", nameEn: "Salmon nigiri (4 pcs)", price: 8.5, icon: "🍣" },
-                { name: "Miso sriuba", nameEn: "Miso soup", price: 3.9, icon: "🍜" },
-                { name: "Edamame", nameEn: "Edamame", price: 4.2, icon: "🫛" }
-            ]
-        },
-        {
-            id: "green", name: "Green Bite", nameEn: "Green Bite", icon: "🥗",
-            image: "images/restaurants/green-bite.webp",
-            category: "Salotos ir sveikesni pasirinkimai", categoryEn: "Salads & healthy choices",
-            dishes: [
-                { name: "Cezario salotos", nameEn: "Caesar salad", price: 7.2, icon: "🥗" },
-                { name: "Veganiškas bowl", nameEn: "Vegan bowl", price: 8.9, icon: "🥙" },
-                { name: "Humusas su daržovėmis", nameEn: "Hummus with vegetables", price: 5.5, icon: "🥕" },
-                { name: "Žaliasis smoothie", nameEn: "Green smoothie", price: 4.5, icon: "🥤" },
-                { name: "Veganiškas wrap", nameEn: "Vegan wrap", price: 6.9, icon: "🌯" }
-            ]
-        }
-    ];
+// Restoranai ir patiekalai.
+const IMG = {
+    cepelinai: "images/cepelinai.webp"
+};
 
-    const items = restaurants.flatMap(restaurant => restaurant.dishes.map(dish => ({
-        ...dish, restaurant: restaurant.name, restaurantId: restaurant.id
-    })));
-
-    function restaurantName(restaurantId) {
-        const restaurant = restaurants.find(item => item.id === restaurantId);
-        return restaurant ? (language === "en" ? restaurant.nameEn : restaurant.name) : t("restaurant");
-    }
-    function dishName(item) {
-        const dish = items.find(product => product.name === item.name);
-        return dish ? (language === "en" ? dish.nameEn : dish.name) : (item.name || "");
-    }
-    function restaurantCategory(restaurant) {
-        return language === "en" ? restaurant.categoryEn : restaurant.category;
-    }
-    function renderStars(rating) {
-        const filled = Math.max(0, Math.min(5, Math.round(Number(rating) || 0)));
-        return "★".repeat(filled) + "☆".repeat(5 - filled);
-    }
-
-    // Pradiniai duomenys – po penkis skirtingus atsiliepimus kiekvienam restoranui.
-    // Tai aiškiai pažymėti demonstraciniai atsiliepimai, o lankytojų atsiliepimai saugomi atskirai.
-    const BASE_REVIEWS = {
-        lt: [
-            { name: "Mantas", rating: 5, comment: "Cepelinai priminė namuose gamintus, o porcija tikrai soti.", commentEn: "The potato dumplings tasted homemade and the portion was generous.", dateLabel: "prieš 2 val." },
-            { name: "Ieva", rating: 4, comment: "Šaltibarščiai labai geri, tik norėjosi truputį daugiau bulvių.", commentEn: "The cold beet soup was great; I would have liked a little more potato on the side.", dateLabel: "vakar" },
-            { name: "Paulius", rating: 5, comment: "Kugelis puikus, patiekalai atkeliavo dar šilti.", commentEn: "The potato pudding was excellent and the food arrived warm.", dateLabel: "prieš 2 d." },
-            { name: "Rūta", rating: 4, comment: "Geras tradicinis maistas ir normalios kainos.", commentEn: "Good traditional food and reasonable prices.", dateLabel: "prieš 3 d." },
-            { name: "Lukas", rating: 3, comment: "Skonis geras, bet pristatymas užtruko ilgiau nei tikėjausi.", commentEn: "The food tasted good, but delivery took longer than expected.", dateLabel: "prieš 5 d." }
-        ],
-        pizza: [
-            { name: "Gabija", rating: 5, comment: "Traški plutelė, daug sūrio ir labai geras pepperoni.", commentEn: "Crispy crust, plenty of cheese and excellent pepperoni.", dateLabel: "prieš 1 val." },
-            { name: "Tomas", rating: 5, comment: "Margarita paprasta, bet tikrai skani. Užsisakysiu dar.", commentEn: "The Margherita is simple but really tasty. I will order again.", dateLabel: "vakar" },
-            { name: "Austėja", rating: 4, comment: "Pica gera, tik galėtų būti šiek tiek mažiau aliejaus.", commentEn: "The pizza was good, though it could use a little less oil.", dateLabel: "prieš 2 d." },
-            { name: "Dominykas", rating: 3, comment: "Skonis neblogas, bet pica atvyko jau pravėsusi.", commentEn: "The taste was decent, but the pizza arrived lukewarm.", dateLabel: "prieš 4 d." },
-            { name: "Ema", rating: 5, comment: "Keturių sūrių pica verta kiekvieno cento.", commentEn: "The four-cheese pizza is worth every cent.", dateLabel: "prieš 6 d." }
-        ],
-        burger: [
-            { name: "Karolis", rating: 4, comment: "Sultingas burgeris ir geras padažas. Bulvytės galėtų būti traškesnės.", commentEn: "Juicy burger and a great sauce. The fries could be crispier.", dateLabel: "prieš 3 val." },
-            { name: "Monika", rating: 5, comment: "Vištienos burgeris labai skanus, porcija soti.", commentEn: "The chicken burger was delicious and filling.", dateLabel: "vakar" },
-            { name: "Edvinas", rating: 4, comment: "Geras kainos ir kokybės santykis.", commentEn: "Good value for money.", dateLabel: "prieš 2 d." },
-            { name: "Simona", rating: 2, comment: "Bandelė buvo kiek sausa, o mėsa persūdyta.", commentEn: "The bun was a little dry and the patty was too salty.", dateLabel: "prieš 4 d." },
-            { name: "Nojus", rating: 5, comment: "Klasikinis burgeris tapo mano favoritu.", commentEn: "The classic burger has become my favourite.", dateLabel: "prieš 1 sav." }
-        ],
-        sushi: [
-            { name: "Viktorija", rating: 4, comment: "Sušiai švieži, ryžiai geros tekstūros.", commentEn: "The sushi was fresh and the rice had a good texture.", dateLabel: "prieš 2 val." },
-            { name: "Tadas", rating: 5, comment: "Lašišos nigiri puikūs, tikrai rekomenduoju.", commentEn: "The salmon nigiri was excellent. Highly recommended.", dateLabel: "vakar" },
-            { name: "Miglė", rating: 3, comment: "Skonis geras, bet rinkinys galėtų būti įvairesnis.", commentEn: "The flavour was good, but the set could be more varied.", dateLabel: "prieš 2 d." },
-            { name: "Arnas", rating: 4, comment: "Miso sriuba labai patiko, sušiai taip pat geri.", commentEn: "I really liked the miso soup; the sushi was good too.", dateLabel: "prieš 4 d." },
-            { name: "Ugnė", rating: 2, comment: "Ritiniai buvo kiek ištižę, tikėjausi geresnės kokybės.", commentEn: "The rolls were a little soggy. I expected better quality.", dateLabel: "prieš 6 d." }
-        ],
-        green: [
-            { name: "Aistė", rating: 5, comment: "Šviežios daržovės, skanūs padažai ir puikus bowl.", commentEn: "Fresh vegetables, tasty dressings and an excellent bowl.", dateLabel: "prieš 1 val." },
-            { name: "Jonas", rating: 4, comment: "Cezario salotos labai geros, norėtųsi daugiau padažo.", commentEn: "The Caesar salad was great; I would have liked a little more dressing.", dateLabel: "vakar" },
-            { name: "Greta", rating: 5, comment: "Pagaliau skanus veganiškas pasirinkimas su didele porcija.", commentEn: "Finally, a delicious vegan option with a generous portion.", dateLabel: "prieš 2 d." },
-            { name: "Dovydas", rating: 5, comment: "Smoothie gaivus, o wrap buvo labai sotus.", commentEn: "The smoothie was refreshing and the wrap was very filling.", dateLabel: "prieš 3 d." },
-            { name: "Emilija", rating: 4, comment: "Puikus lengvesnis maistas, tik pristatymas kiek vėlavo.", commentEn: "Great lighter food, though delivery was a little late.", dateLabel: "prieš 5 d." }
+const restaurants = [
+    {
+        id: "lt",
+        name: "Lietuviška Virtuvė",
+        icon: "🥟",
+        image: "images/restaurants/lietuviska-virtuve.webp",
+        dishes: [
+            { name: "Cepelinai su mėsa", price: 7.9, image: IMG.cepelinai },
+            { name: "Šaltibarščiai", price: 4.8, icon: "🩷" },
+            { name: "Bulvių kugelis", price: 6.5, icon: "🥔" },
+            { name: "Kibinai (3 vnt.)", price: 5.9, icon: "🥟" },
+            { name: "Bulviniai blynai", price: 6.2, icon: "🥞" }
         ]
-    };
+    },
+    {
+        id: "pizza",
+        name: "Pizza Corner",
+        icon: "🍕",
+        image: "images/restaurants/pizza-corner.webp",
+        dishes: [
+            { name: "Pica Margarita", price: 9.5, icon: "🍕" },
+            { name: "Pica Pepperoni", price: 10.9, icon: "🍕" },
+            { name: "Pica Keturi sūriai", price: 11.5, icon: "🧀" },
+            { name: "Pica Hawaii", price: 10.5, icon: "🍍" },
+            { name: "Calzone", price: 9.9, icon: "🥟" }
+        ]
+    },
+    {
+        id: "burger",
+        name: "Burger House",
+        icon: "🍔",
+        image: "images/restaurants/burger-house.webp",
+        dishes: [
+            { name: "Klasikinis burgeris", price: 7.5, icon: "🍔" },
+            { name: "Sūrio burgeris", price: 8.2, icon: "🧀" },
+            { name: "Bekono burgeris", price: 8.9, icon: "🥓" },
+            { name: "Vištienos burgeris", price: 7.9, icon: "🍗" },
+            { name: "Veggie burgeris", price: 7.8, icon: "🥬" }
+        ]
+    },
+    {
+        id: "sushi",
+        name: "Sushi Point",
+        icon: "🍣",
+        image: "images/restaurants/sushi-point.webp",
+        dishes: [
+            { name: "Suši rinkinys", price: 12.9, icon: "🍣" },
+            { name: "Kalifornijos ritiniai", price: 9.9, icon: "🍙" },
+            { name: "Lašišos nigiri (4 vnt.)", price: 8.5, icon: "🍣" },
+            { name: "Miso sriuba", price: 3.9, icon: "🍜" },
+            { name: "Edamame", price: 4.2, icon: "🫛" }
+        ]
+    },
+    {
+        id: "green",
+        name: "Green Bite",
+        icon: "🥗",
+        image: "images/restaurants/green-bite.webp",
+        dishes: [
+            { name: "Cezario salotos", price: 7.2, icon: "🥗" },
+            { name: "Veganiškas bowl", price: 8.9, icon: "🥙" },
+            { name: "Humusas su daržovėmis", price: 5.5, icon: "🥕" },
+            { name: "Žaliasis smoothie", price: 4.5, icon: "🥤" },
+            { name: "Veganiškas wrap", price: 6.9, icon: "🌯" }
+        ]
+    }
+];
 
-    let userReviews = readStoredValue(STORAGE_KEYS.reviews, []);
-    if (!Array.isArray(userReviews)) userReviews = [];
-    userReviews = userReviews.filter(review => review && restaurants.some(r => r.id === review.restaurantId));
+const items = restaurants.flatMap(restaurant =>
+    restaurant.dishes.map(dish => ({
+        ...dish,
+        restaurant: restaurant.name,
+        restaurantId: restaurant.id
+    }))
+);
 
-    function getRestaurantReviews(restaurantId) {
-        const seeds = (BASE_REVIEWS[restaurantId] || []).map((review, index) => ({
-            ...review, id: `seed-${restaurantId}-${index}`, isSeed: true
+const storedCart = readStoredValue(STORAGE_KEYS.cart, []);
+
+if (Array.isArray(storedCart)) {
+    cart = storedCart.map(entry => {
+        const name = typeof entry === "string" ? entry : entry?.name;
+        return items.find(product => product.name === name);
+    }).filter(Boolean);
+}
+
+let selectedRestaurant = restaurants[0].id;
+
+const restaurantCategories = {
+    lt: "Lietuviška virtuvė",
+    pizza: "Picos ir itališki skoniai",
+    burger: "Mėsainiai",
+    sushi: "Sušiai ir azijietiški patiekalai",
+    green: "Salotos ir sveikesni pasirinkimai"
+};
+
+const seedReviews = {
+    lt: [
+        ["Austėja", 5, "Cepelinai priminė namuose gamintus. Porcija soti, o šaltibarščiai labai gaivūs."],
+        ["Mantas", 4, "Kugelis skanus, tik norėtųsi šiek tiek daugiau padažo."],
+        ["Gabija", 5, "Labai patiko kibinai ir greitas užsakymo paruošimas."],
+        ["Paulius", 4, "Geras tradicinis maistas, kainos visai normalios."],
+        ["Ieva", 3, "Skonis geras, bet bulviniai blynai galėtų būti traškesni."],
+        ["Lukas", 5, "Puikus pasirinkimas, kai norisi lietuviško maisto."]
+    ],
+    pizza: [
+        ["Greta", 5, "Pepperoni pica su daug sūrio – tikrai užsisakysiu dar."],
+        ["Nojus", 4, "Plona plutelė ir geras padažas. Calzone taip pat patiko."],
+        ["Emilija", 3, "Pica skani, bet tikėjausi traškesnių kraštų."],
+        ["Dovydas", 5, "Keturių sūrių pica viena geriausių šiame meniu."],
+        ["Karolina", 4, "Gera porcija ir subalansuotas skonis."],
+        ["Tadas", 4, "Hawaii pica nustebino – ananasas čia tikrai tinka."]
+    ],
+    burger: [
+        ["Jonas", 4, "Sūrio burgeris sotus, mėsa gerai iškepta."],
+        ["Viktorija", 5, "Bekono burgeris labai geras, patiko padažas."],
+        ["Rokas", 3, "Skonis neblogas, bet bandelė buvo kiek sausa."],
+        ["Monika", 4, "Vištienos burgeris lengvesnis, bet vis tiek sotus."],
+        ["Simas", 5, "Didelė porcija ir geras ingredientų santykis."],
+        ["Eglė", 3, "Norėtųsi daugiau daržovių, tačiau bendrai visai gerai."]
+    ],
+    sushi: [
+        ["Lina", 5, "Sušiai atrodė švieži, ryžiai gerai paruošti."],
+        ["Arnas", 4, "Kalifornijos ritiniai puikūs, miso sriuba taip pat patiko."],
+        ["Viltė", 5, "Lašišos nigiri buvo labai skanūs."],
+        ["Darius", 3, "Skonis geras, bet rinkinyje norėtųsi daugiau įvairovės."],
+        ["Ugnė", 4, "Tvarkingas meniu ir geras skonių balansas."],
+        ["Kamilė", 5, "Edamame ir sušiai – puikus derinys."]
+    ],
+    green: [
+        ["Rūta", 5, "Cezario salotos šviežios, padažas labai geras."],
+        ["Andrius", 5, "Veganiškas bowl sotus ir spalvingas."],
+        ["Miglė", 4, "Humusas skanus, daržovės traškios."],
+        ["Erikas", 5, "Smoothie gaivus, ne per saldus."],
+        ["Saulė", 4, "Geras pasirinkimas lengvesniems pietums."],
+        ["Nedas", 3, "Wrap skanus, bet norėtųsi šiek tiek didesnės porcijos."]
+    ]
+};
+
+let reviewsByRestaurant = readStoredValue(STORAGE_KEYS.reviewsByRestaurant, null);
+
+if (!reviewsByRestaurant || typeof reviewsByRestaurant !== "object" || Array.isArray(reviewsByRestaurant)) {
+    reviewsByRestaurant = {};
+
+    restaurants.forEach(restaurant => {
+        reviewsByRestaurant[restaurant.id] = (seedReviews[restaurant.id] || []).map((review, index) => ({
+            id: `${restaurant.id}-seed-${index + 1}`,
+            name: review[0],
+            rating: review[1],
+            comment: review[2],
+            createdAt: new Date(Date.now() - (index + 1) * 86400000).toISOString(),
+            dateLabel: `${index + 1} d. prieš`,
+            source: "seed"
         }));
-        const submitted = userReviews.filter(review => review.restaurantId === restaurantId)
-            .map(review => ({ ...review, isSeed: false }));
-        return [...submitted, ...seeds];
-    }
-    function getRatingInfo(restaurantId) {
-        const reviews = getRestaurantReviews(restaurantId);
-        const average = reviews.length ? reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length : 0;
-        return { count: reviews.length, average };
-    }
-    function reviewDateLabel(review) {
-        if (language === "lt") return review.dateLabel || "Neseniai";
-        if (!review.isSeed) return "Just now · on this device";
-        const labels = {
-            "prieš 1 val.": "1 hour ago", "prieš 2 val.": "2 hours ago", "prieš 3 val.": "3 hours ago",
-            "vakar": "Yesterday", "prieš 2 d.": "2 days ago", "prieš 3 d.": "3 days ago",
-            "prieš 4 d.": "4 days ago", "prieš 5 d.": "5 days ago", "prieš 6 d.": "6 days ago",
-            "prieš 1 sav.": "1 week ago"
-        };
-        return labels[review.dateLabel] || "Recently";
+    });
+
+    // Migruojami tik seni atsiliepimai, kurie jau turi restorano ID.
+    // Restoranas senam bendram atsiliepimui nespėjamas.
+    const legacyReviews = readStoredValue(STORAGE_KEYS.reviews, []);
+
+    if (Array.isArray(legacyReviews)) {
+        legacyReviews
+            .filter(review => review && review.restaurantId && reviewsByRestaurant[review.restaurantId])
+            .forEach(review => {
+                reviewsByRestaurant[review.restaurantId].unshift({
+                    ...review,
+                    id: review.id || `legacy-${Date.now()}-${Math.random()}`,
+                    source: "user"
+                });
+            });
     }
 
-    let selectedRestaurant = restaurants[0].id;
-    let selectedReviewRestaurant = restaurants[0].id;
+    writeStoredValue(STORAGE_KEYS.reviewsByRestaurant, reviewsByRestaurant);
+}
 
-    function renderRestaurants() {
-        const list = document.getElementById("restaurantList");
-        const count = document.getElementById("restaurantsCount");
-        if (!list) return;
-        if (count) count.textContent = `${restaurants.length} ${language === "lt" ? "restoranai" : "restaurants"}`;
-        list.innerHTML = restaurants.map(restaurant => {
-            const rating = getRatingInfo(restaurant.id);
-            return `
-                <article class="restaurant-card">
+restaurants.forEach(restaurant => {
+    if (!Array.isArray(reviewsByRestaurant[restaurant.id])) {
+        reviewsByRestaurant[restaurant.id] = [];
+    }
+});
+
+function saveRestaurantReviews() {
+    writeStoredValue(STORAGE_KEYS.reviewsByRestaurant, reviewsByRestaurant);
+}
+
+function getRestaurantReviews(id) {
+    return Array.isArray(reviewsByRestaurant[id]) ? reviewsByRestaurant[id] : [];
+}
+
+function getRestaurantRating(id) {
+    const reviews = getRestaurantReviews(id);
+    if (!reviews.length) return { average: 0, count: 0 };
+
+    return {
+        average: reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length,
+        count: reviews.length
+    };
+}
+
+function starsFor(rating) {
+    const rounded = Math.round(rating);
+    return "★".repeat(rounded) + "☆".repeat(5 - rounded);
+}
+
+function renderRestaurantReviews() {
+    const restaurant = restaurants.find(item => item.id === selectedRestaurant);
+    const list = document.getElementById("reviewList");
+
+    if (!restaurant || !list) return;
+
+    const stats = getRestaurantRating(restaurant.id);
+
+    document.getElementById("reviewsTitle").textContent = currentLanguage === "en"
+        ? `${restaurant.name} reviews`
+        : `${restaurant.name} atsiliepimai`;
+
+    document.getElementById("reviewRestaurantName").textContent =
+        `${stats.average.toFixed(1).replace(".", ",")} / 5 · ${stats.count} ${t("reviewCount")}`;
+
+    document.getElementById("ratingSummary").textContent =
+        `${starsFor(stats.average)} ${stats.average.toFixed(1).replace(".", ",")} / 5`;
+
+    const reviews = getRestaurantReviews(restaurant.id);
+
+    list.innerHTML = reviews.length
+        ? reviews.map(review => `
+            <article class="review-card">
+                <div class="review-top">
+                    <strong>${escapeHTML(review.name)}</strong>
+                    <span class="stars">${starsFor(Number(review.rating) || 0)}</span>
+                </div>
+                <p>„${escapeHTML(review.comment)}“</p>
+                <span class="review-author">${escapeHTML(review.dateLabel || "Neseniai")}</span>
+            </article>
+        `).join("")
+        : `<div class="empty-history">${t("noReviews")}</div>`;
+
+    const reviewName = document.getElementById("reviewName");
+    if (reviewName && !reviewName.value) reviewName.value = profileData.name;
+}
+
+const restaurantCategoriesEnglish = {
+    lt: "Lithuanian cuisine",
+    pizza: "Pizza and Italian food",
+    burger: "Burgers",
+    sushi: "Sushi and Asian food",
+    green: "Salads and healthy choices"
+};
+
+function renderRestaurants() {
+    const list = document.getElementById("restaurantList");
+    const count = document.getElementById("restaurantsCount");
+
+    if (!list) return;
+
+    if (count) {
+        count.textContent = `${restaurants.length} ${currentLanguage === "en" ? "restaurants" : "restoranai"}`;
+    }
+
+    list.innerHTML = restaurants.map(restaurant => {
+        const stats = getRestaurantRating(restaurant.id);
+
+        const ratingText = stats.count
+            ? `${starsFor(stats.average)} ${stats.average.toFixed(1).replace(".", ",")} <span class="restaurant-review-count">(${stats.count})</span>`
+            : t("noReviews");
+
+        return `
+            <article class="restaurant-card">
+                <button class="restaurant-card-main" type="button"
+                    data-open-restaurant="${escapeHTML(restaurant.id)}"
+                    aria-label="Atidaryti ${escapeHTML(restaurant.name)} meniu">
                     <span class="restaurant-card-art" aria-hidden="true">
                         <img src="${escapeHTML(restaurant.image)}" alt="" loading="lazy" decoding="async">
                     </span>
                     <span class="restaurant-card-content">
-                        <span class="restaurant-card-category">${escapeHTML(restaurantCategory(restaurant))}</span>
-                        <strong class="restaurant-card-name">${escapeHTML(restaurantName(restaurant.id))}</strong>
-                        <span class="restaurant-card-meta">${restaurant.dishes.length} ${t("dishes")} · ${language === "lt" ? "Demonstracinis meniu" : "Demo menu"}</span>
-                        <span class="restaurant-rating-line"><span class="stars">${renderStars(rating.average)}</span><strong>${rating.average.toFixed(1)}</strong><small>(${rating.count} ${t("reviewCount")})</small></span>
-                        <span class="restaurant-card-actions">
-                            <button type="button" class="restaurant-menu-action" data-open-restaurant="${restaurant.id}">${t("viewMenu")} →</button>
-                            <button type="button" class="restaurant-review-action" data-open-reviews="${restaurant.id}">${t("reviews")}</button>
-                        </span>
+                        <span class="restaurant-card-category">${escapeHTML(
+                            currentLanguage === "en"
+                                ? restaurantCategoriesEnglish[restaurant.id]
+                                : (restaurantCategories[restaurant.id] || "Restoranas")
+                        )}</span>
+                        <strong class="restaurant-card-name">${escapeHTML(restaurant.name)}</strong>
+                        <span class="restaurant-card-meta">${restaurant.dishes.length} ${
+                            currentLanguage === "en" ? "dishes" : "patiekalai"
+                        } · ${currentLanguage === "en" ? "Demo menu" : "Demonstracinis meniu"}</span>
+                        <span class="restaurant-card-link">${
+                            currentLanguage === "en" ? "View menu" : "Peržiūrėti meniu"
+                        } <span aria-hidden="true">→</span></span>
                     </span>
-                </article>`;
-        }).join("");
+                </button>
+                <button type="button" class="restaurant-review-link"
+                    data-open-reviews="${escapeHTML(restaurant.id)}"
+                    aria-label="${currentLanguage === "en" ? "Read reviews" : "Skaityti atsiliepimus"} ${escapeHTML(restaurant.name)}">
+                    <span class="stars">${ratingText}</span>
+                    <span>${currentLanguage === "en" ? "Reviews" : "Atsiliepimai"} →</span>
+                </button>
+            </article>
+        `;
+    }).join("");
+}
+
+function openRestaurant(restaurantId) {
+    const restaurant = restaurants.find(item => item.id === restaurantId);
+    if (!restaurant) return;
+
+    selectedRestaurant = restaurant.id;
+
+    document.getElementById("restaurantDetailIcon").textContent = restaurant.icon;
+    document.getElementById("restaurantDetailCategory").textContent =
+        currentLanguage === "en"
+            ? (restaurantCategoriesEnglish[restaurant.id] || "RESTAURANT")
+            : (restaurantCategories[restaurant.id] || "RESTORANAS");
+
+    document.getElementById("menu-title").textContent = restaurant.name;
+    document.getElementById("restaurantDetailMeta").textContent =
+        currentLanguage === "en"
+            ? `${restaurant.dishes.length} dishes · Choose items and add them to your cart`
+            : `${restaurant.dishes.length} patiekalai · Pasirink patiekalus ir pridėk juos į krepšelį`;
+
+    renderMenu();
+    updateMenuRating();
+    setTab("menu");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateMenuRating() {
+    const stats = getRestaurantRating(selectedRestaurant);
+    const rating = document.getElementById("menuRating");
+    const count = document.getElementById("menuReviewCount");
+
+    if (rating) {
+        rating.textContent = stats.count
+            ? `${starsFor(stats.average)} ${stats.average.toFixed(1).replace(".", ",")} / 5`
+            : "— / 5";
     }
 
-    function openRestaurant(restaurantId) {
-        const restaurant = restaurants.find(item => item.id === restaurantId);
-        if (!restaurant) return;
-        selectedRestaurant = restaurant.id;
-        document.getElementById("restaurantDetailIcon").textContent = restaurant.icon;
-        document.getElementById("restaurantDetailCategory").textContent = restaurantCategory(restaurant).toLocaleUpperCase(language === "lt" ? "lt-LT" : "en-US");
-        document.getElementById("menu-title").textContent = restaurantName(restaurant.id);
-        document.getElementById("restaurantDetailMeta").textContent = `${restaurant.dishes.length} ${t("dishes")} · ${language === "lt" ? "Pasirink patiekalus ir pridėk juos į krepšelį" : "Choose dishes and add them to your cart"}`;
-        const rating = getRatingInfo(restaurant.id);
-        document.getElementById("restaurantDetailRating").innerHTML = `<span class="stars">${renderStars(rating.average)}</span><strong>${rating.average.toFixed(1)} / 5</strong><button type="button" data-open-reviews="${restaurant.id}">${t("reviews")} (${rating.count})</button>`;
-        renderMenu();
-        setView("menu");
+    if (count) count.textContent = `${stats.count} ${t("reviewCount")}`;
+}
+
+document.getElementById("openRestaurantReviews")?.addEventListener("click", () => {
+    setTab("reviews");
+});
+
+document.getElementById("reviewsBackButton")?.addEventListener("click", () => {
+    setTab("menu");
+});
+
+document.getElementById("restaurantList")?.addEventListener("click", event => {
+    const reviewButton = event.target.closest("button[data-open-reviews]");
+
+    if (reviewButton) {
+        selectedRestaurant = reviewButton.dataset.openReviews;
+        setTab("reviews");
         window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
     }
 
-    function openRestaurantReviews(restaurantId) {
-        if (!restaurants.some(item => item.id === restaurantId)) return;
-        selectedReviewRestaurant = restaurantId;
-        document.getElementById("restaurantReviewsTitle").textContent = `${restaurantName(restaurantId)} · ${t("reviews")}`;
-        document.getElementById("restaurantReviewsSubtitle").textContent = language === "lt"
-            ? "Įvertinimai ir lankytojų komentarai apie šį restoraną."
-            : "Ratings and customer comments about this restaurant.";
-        document.getElementById("reviewName").value = profile.name || "";
-        document.getElementById("reviewMessage").textContent = "";
-        renderRestaurantReviews();
-        setView("restaurantReviews");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    const card = event.target.closest("button[data-open-restaurant]");
+    if (card) openRestaurant(card.dataset.openRestaurant);
+});
 
-    function renderRestaurantReviews() {
-        const list = document.getElementById("reviewList");
-        if (!list) return;
-        const restaurant = restaurants.find(item => item.id === selectedReviewRestaurant);
-        if (!restaurant) return;
-        const reviews = getRestaurantReviews(selectedReviewRestaurant);
-        const info = getRatingInfo(selectedReviewRestaurant);
-        const summary = document.getElementById("restaurantRatingSummary");
-        if (summary) summary.textContent = `★ ${info.average.toFixed(1)} / 5 · ${info.count} ${t("reviewCount")}`;
-        list.innerHTML = reviews.length ? reviews.map(review => `
-            <article class="review-card">
-                <div class="review-top">
-                    <strong>${escapeHTML(review.name || (language === "lt" ? "Lankytojas" : "Guest"))}</strong>
-                    <span class="stars" aria-label="${review.rating} / 5">${renderStars(review.rating)}</span>
-                </div>
-                <p>„${escapeHTML(language === "en" && review.commentEn ? review.commentEn : review.comment)}“</p>
-                <span class="review-author">${escapeHTML(reviewDateLabel(review))}</span>
-            </article>`).join("") : `<div class="empty-history">${t("noReviews")}</div>`;
-    }
+document.getElementById("restaurantBackButton")?.addEventListener("click", () => {
+    setTab("restaurants");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+});
 
-    function renderMenu() {
-        const menu = document.getElementById("menu");
-        if (!menu) return;
-        menu.innerHTML = items.map((item, index) => {
-            if (item.restaurantId !== selectedRestaurant) return "";
-            const picture = item.image
-                ? `<img class="dish-image" src="${escapeHTML(item.image)}" alt="${escapeHTML(dishName(item))}" loading="lazy" decoding="async">`
-                : `<span class="dish-image dish-placeholder" role="img" aria-label="${escapeHTML(dishName(item))}">${item.icon || "🍽️"}</span>`;
-            return `<article class="row">
-                <span class="dish-name">${escapeHTML(dishName(item))}</span>
-                <span class="price">${formatMoney(item.price)}</span>
-                <button type="button" class="add-dish-button" data-add-item="${index}" aria-label="${t("add")} ${escapeHTML(dishName(item))}">${t("add")}</button>
+function renderMenu() {
+    document.getElementById("menu").innerHTML = items.map((item, index) => {
+        if (item.restaurantId !== selectedRestaurant) return "";
+
+        const picture = item.image
+            ? `<img class="dish-image" src="${item.image}" alt="${item.name}" loading="lazy" decoding="async">`
+            : `<span class="dish-image" role="img" aria-label="${item.name}"
+                style="display:grid;place-items:center;font-size:2rem;background:#f3f3f3;border-radius:12px">${item.icon || "🍽️"}</span>`;
+
+        return `
+            <div class="row">
+                <span>${item.name}</span>
+                <span class="price">${item.price.toFixed(2).replace(".", ",")} €</span>
+                <button onclick="add(${index})"
+                    aria-label="${currentLanguage === "en" ? "Add" : "Pridėti"} ${escapeHTML(item.name)}">
+                    ${t("add")}
+                </button>
                 ${picture}
-            </article>`;
-        }).join("");
+            </div>
+        `;
+    }).join("");
+}
+
+renderRestaurants();
+renderMenu();
+renderHistory();
+
+document.getElementById("reviewForm")?.addEventListener("submit", event => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const name = form.elements.namedItem("name").value.trim();
+    const rating = Number(form.elements.namedItem("rating").value);
+    const comment = form.elements.namedItem("comment").value.trim();
+    const message = document.getElementById("reviewMessage");
+
+    if (!name || !comment || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+        message.textContent = currentLanguage === "en"
+            ? "Please complete all fields and choose a rating."
+            : "Užpildyk visus laukus ir pasirink įvertinimą.";
+        return;
     }
 
-    document.getElementById("restaurantList")?.addEventListener("click", event => {
-        const menuButton = event.target.closest("[data-open-restaurant]");
-        const reviewsButton = event.target.closest("[data-open-reviews]");
-        if (menuButton) openRestaurant(menuButton.dataset.openRestaurant);
-        else if (reviewsButton) openRestaurantReviews(reviewsButton.dataset.openReviews);
+    reviewsByRestaurant[selectedRestaurant].unshift({
+        id: `user-${Date.now()}`,
+        name: name.slice(0, 40),
+        rating,
+        comment: comment.slice(0, 500),
+        createdAt: new Date().toISOString(),
+        dateLabel: currentLanguage === "en"
+            ? "Just now · saved on this device"
+            : "Ką tik · išsaugota šiame įrenginyje",
+        source: "user"
     });
-    document.getElementById("restaurantDetailRating")?.addEventListener("click", event => {
-        const button = event.target.closest("[data-open-reviews]");
-        if (button) openRestaurantReviews(button.dataset.openReviews);
-    });
-    document.getElementById("menu")?.addEventListener("click", event => {
-        const button = event.target.closest("[data-add-item]");
-        if (button) add(Number(button.dataset.addItem));
-    });
-    document.getElementById("restaurantBackButton")?.addEventListener("click", () => setView("restaurants"));
-    document.getElementById("reviewsBackButton")?.addEventListener("click", () => setView("restaurants"));
 
-    // Naršymas tarp pagrindinio katalogo, profilio, restorano atsiliepimų ir lygių.
-    function setView(viewName) {
-        const views = {
-            restaurants: "restaurantsView", menu: "menuView", restaurantReviews: "restaurantReviewsView",
-            profile: "profileView", level: "levelView"
+    saveRestaurantReviews();
+    renderRestaurantReviews();
+    renderRestaurants();
+    updateMenuRating();
+    form.reset();
+    message.textContent = t("reviewSaved");
+});
+
+document.querySelector(".tabs")?.addEventListener("click", event => {
+    const button = event.target.closest("button[data-tab]");
+    if (button) setTab(button.dataset.tab);
+});
+
+const userMenu = document.getElementById("userMenu");
+
+function closeUserMenu() {
+    if (userMenu) userMenu.hidden = true;
+    document.getElementById("profileButton")?.setAttribute("aria-expanded", "false");
+}
+
+document.getElementById("profileButton")?.addEventListener("click", event => {
+    event.stopPropagation();
+
+    if (!userMenu) return;
+
+    userMenu.hidden = !userMenu.hidden;
+
+    document.getElementById("profileButton").setAttribute(
+        "aria-expanded",
+        String(!userMenu.hidden)
+    );
+});
+
+userMenu?.addEventListener("click", event => event.stopPropagation());
+
+document.addEventListener("click", event => {
+    if (!event.target.closest(".header-user-wrap")) closeUserMenu();
+});
+
+document.getElementById("userMenuProfile")?.addEventListener("click", () => {
+    closeUserMenu();
+    setTab("profile");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+document.getElementById("userMenuLogout")?.addEventListener("click", () => {
+    closeUserMenu();
+    goHome();
+    showToast(t("loggedOut"));
+});
+
+document.getElementById("languageSelect")?.addEventListener("change", event => {
+    currentLanguage = event.target.value === "en" ? "en" : "lt";
+    writeStoredValue(STORAGE_KEYS.language, currentLanguage);
+    applyLanguage();
+});
+
+document.getElementById("openSettings")?.addEventListener("click", () => {
+    setTab("settings");
+});
+
+document.getElementById("settingsBackButton")?.addEventListener("click", () => {
+    setTab("profile");
+});
+
+document.querySelectorAll("[data-theme-choice]").forEach(button => {
+    button.addEventListener("click", () => {
+        currentTheme = button.dataset.themeChoice === "dark" ? "dark" : "light";
+        applyTheme();
+    });
+});
+
+document.getElementById("deleteAccountButton")?.addEventListener("click", () => {
+    if (!window.confirm(t("deleteConfirm"))) return;
+
+    [
+        STORAGE_KEYS.cart,
+        STORAGE_KEYS.history,
+        STORAGE_KEYS.xp,
+        STORAGE_KEYS.balance,
+        STORAGE_KEYS.rewardLevel,
+        STORAGE_KEYS.profile,
+        STORAGE_KEYS.reviewsByRestaurant,
+        STORAGE_KEYS.reviews
+    ].forEach(key => localStorage.removeItem(key));
+
+    localStorage.removeItem("boomfood-balansas");
+    location.reload();
+});
+
+document.getElementById("saveProfileName")?.addEventListener("click", () => {
+    const input = document.getElementById("profileNameInput");
+    const value = input.value.trim();
+    const message = document.getElementById("profileMessage");
+
+    if (value.length < 2 || value.length > 30) {
+        message.textContent = t("noName");
+        return;
+    }
+
+    if (Date.now() - profileData.lastNameChangeAt < 30 * 60 * 1000) {
+        updateNameCooldown();
+        return;
+    }
+
+    profileData.name = value;
+    profileData.lastNameChangeAt = Date.now();
+
+    saveProfile();
+    renderProfile();
+    message.textContent = t("profileSaved");
+});
+
+document.getElementById("profilePictureInput")?.addEventListener("change", event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+        showToast(t("imageOnly"));
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+        const image = new Image();
+
+        image.onload = () => {
+            try {
+                const canvas = document.createElement("canvas");
+                const size = 320;
+                const scale = Math.min(size / image.width, size / image.height, 1);
+
+                canvas.width = Math.max(1, Math.round(image.width * scale));
+                canvas.height = Math.max(1, Math.round(image.height * scale));
+
+                const context = canvas.getContext("2d");
+                context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+                profileData.avatar = canvas.toDataURL("image/jpeg", 0.82);
+                saveProfile();
+                renderProfile();
+            } catch (error) {
+                console.error(error);
+                showToast(t("photoTooLarge"));
+            }
         };
-        if (!Object.prototype.hasOwnProperty.call(views, viewName)) return;
-        Object.entries(views).forEach(([name, id]) => {
-            const view = document.getElementById(id);
-            if (view) view.hidden = name !== viewName;
-        });
-        const hero = document.querySelector(".hero");
-        if (hero) hero.hidden = viewName !== "restaurants";
-        if (viewName === "restaurants") renderRestaurants();
-        if (viewName === "menu") renderMenu();
-        if (viewName === "restaurantReviews") renderRestaurantReviews();
-        if (viewName === "profile") renderProfile();
-        if (viewName === "level") renderLevelCenter();
-    }
 
-    function goHome() {
-        const delivery = document.getElementById("deliveryOverlay");
-        if (delivery && !delivery.hidden) {
-            closeDelivery();
-            return;
+        image.onerror = () => showToast(t("photoTooLarge"));
+        image.src = String(reader.result);
+    };
+
+    reader.onerror = () => showToast(t("photoTooLarge"));
+    reader.readAsDataURL(file);
+});
+
+applyTheme();
+applyLanguage();
+saveProfile();
+saveWallet();
+renderProfile();
+
+document.getElementById("levelButton")?.addEventListener("click", () => {
+    setTab("level");
+});
+
+document.getElementById("levelBackButton")?.addEventListener("click", () => {
+    setTab("restaurants");
+});
+
+document.getElementById("levelUpClose")?.addEventListener("click", hideLevelUp);
+document.getElementById("homeButton")?.addEventListener("click", goHome);
+
+document.querySelectorAll("[data-home-button]").forEach(button => {
+    button.addEventListener("click", goHome);
+});
+
+// Pradinis puslapis – restoranų katalogas.
+setTab("restaurants");
+
+// Krepšelis: vienodi produktai rodomi viena eilute su kiekiu.
+function getGroupedCart() {
+    const grouped = new Map();
+
+    cart.forEach(item => {
+        const key = item.name;
+
+        if (!grouped.has(key)) {
+            grouped.set(key, {
+                ...item,
+                quantity: 0
+            });
         }
-        if (!document.getElementById("cartOverlay").hidden) closeCart();
-        hideLevelUp();
-        closeAccountMenu();
-        setView("restaurants");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-    }
 
-    document.getElementById("homeButton")?.addEventListener("click", goHome);
-    document.querySelectorAll("[data-home-button]").forEach(button => button.addEventListener("click", goHome));
-    document.getElementById("profileBackButton")?.addEventListener("click", () => setView("restaurants"));
-    document.getElementById("levelButton")?.addEventListener("click", () => setView("level"));
-    document.getElementById("levelBackButton")?.addEventListener("click", () => setView("restaurants"));
-
-    // Paskyros išskleidžiamas meniu prie B avataro.
-    const accountMenu = document.getElementById("accountMenu");
-    function openAccountMenu() {
-        if (!accountMenu) return;
-        accountMenu.hidden = false;
-        document.getElementById("profileButton").setAttribute("aria-expanded", "true");
-    }
-    function closeAccountMenu() {
-        if (!accountMenu) return;
-        accountMenu.hidden = true;
-        document.getElementById("profileButton").setAttribute("aria-expanded", "false");
-    }
-    document.getElementById("profileButton")?.addEventListener("click", event => {
-        event.stopPropagation();
-        if (accountMenu.hidden) openAccountMenu(); else closeAccountMenu();
-    });
-    accountMenu?.addEventListener("click", event => event.stopPropagation());
-    document.addEventListener("click", event => {
-        if (!event.target.closest(".account-menu-wrap")) closeAccountMenu();
-    });
-    document.addEventListener("keydown", event => {
-        if (event.key === "Escape" && accountMenu && !accountMenu.hidden) closeAccountMenu();
-    });
-    document.getElementById("accountProfileButton")?.addEventListener("click", () => {
-        closeAccountMenu();
-        setView("profile");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-    });
-    document.getElementById("accountLogoutButton")?.addEventListener("click", () => {
-        closeAccountMenu();
-        setView("restaurants");
-        showToast(t("logoutNotice"));
-    });
-    document.getElementById("languageSelect")?.addEventListener("change", event => {
-        language = event.target.value === "en" ? "en" : "lt";
-        localStorage.setItem(STORAGE_KEYS.language, language);
-        applyLanguage();
+        grouped.get(key).quantity += 1;
     });
 
-    // Atsiliepimo įrašymas pagal konkretaus restorano ID.
-    document.getElementById("reviewForm")?.addEventListener("submit", event => {
-        event.preventDefault();
-        const form = event.currentTarget;
-        const name = form.elements.namedItem("name").value.trim();
-        const rating = Number(form.elements.namedItem("rating").value);
-        const comment = form.elements.namedItem("comment").value.trim();
-        const message = document.getElementById("reviewMessage");
-        if (!name || !comment || !Number.isInteger(rating) || rating < 1 || rating > 5) {
-            message.textContent = t("reviewValidation");
-            return;
-        }
-        userReviews.unshift({
-            id: `user-${Date.now()}`, restaurantId: selectedReviewRestaurant,
-            name: name.slice(0, 40), rating, comment: comment.slice(0, 500),
-            createdAt: new Date().toISOString(), dateLabel: language === "lt" ? "Ką tik · šiame įrenginyje" : "Just now · on this device"
-        });
-        writeStoredValue(STORAGE_KEYS.reviews, userReviews);
-        renderRestaurantReviews();
-        renderRestaurants();
-        if (selectedRestaurant === selectedReviewRestaurant) {
-            const info = getRatingInfo(selectedRestaurant);
-            document.getElementById("restaurantDetailRating").innerHTML = `<span class="stars">${renderStars(info.average)}</span><strong>${info.average.toFixed(1)} / 5</strong><button type="button" data-open-reviews="${selectedRestaurant}">${t("reviews")} (${info.count})</button>`;
-        }
-        form.elements.namedItem("comment").value = "";
-        form.elements.namedItem("rating").value = "5";
-        message.textContent = t("reviewAdded");
-    });
+    return [...grouped.values()];
+}
 
-    // Krepšelis: atkuriamas pagal produktų pavadinimus, kad išliktų suderinamas su meniu.
-    function restoreCart() {
-        const stored = readStoredValue(STORAGE_KEYS.cart, []);
-        if (!Array.isArray(stored)) return [];
-        return stored.map(savedItem => {
-            const currentItem = items.find(item => item.name === (typeof savedItem === "string" ? savedItem : savedItem?.name));
-            return currentItem ? { ...currentItem } : null;
-        }).filter(Boolean);
-    }
-    let cart = restoreCart();
-    let orderHistory = readStoredValue(STORAGE_KEYS.history, []);
-    if (!Array.isArray(orderHistory)) orderHistory = [];
-    let xp = Number(readStoredValue(STORAGE_KEYS.xp, 0));
-    if (!Number.isFinite(xp) || xp < 0) xp = 0;
-    let balance = Number(localStorage.getItem(STORAGE_KEYS.balance) || 0);
-    if (!Number.isFinite(balance) || balance < 0) balance = 0;
-    let claimedLevels = readStoredValue(STORAGE_KEYS.claimedLevels, null);
-    if (!Array.isArray(claimedLevels)) claimedLevels = [];
-    let levelUpTimer = null;
+function formatMoney(value) {
+    return Number(value).toFixed(2).replace(".", ",") + " €";
+}
 
-    function saveCart() {
-        return writeStoredValue(STORAGE_KEYS.cart, cart.map(item => ({ name: item.name })));
-    }
-    function saveHistory() {
-        writeStoredValue(STORAGE_KEYS.history, orderHistory);
-    }
-    function saveXP() {
-        writeStoredValue(STORAGE_KEYS.xp, xp);
-        const status = document.getElementById("xpSaveStatus");
-        if (status) status.textContent = t("savedOnDevice");
-    }
-    function saveBalance() {
-        const rounded = Math.round(balance * 100) / 100;
-        balance = Math.max(0, rounded);
-        localStorage.setItem(STORAGE_KEYS.balance, String(balance));
-        renderBalance();
-    }
-    function renderBalance() {
-        const text = formatMoney(balance);
-        const header = document.getElementById("boomfood-balansas");
-        const profileBalance = document.getElementById("profileBalance");
-        const rewardBalance = document.getElementById("rewardBalance");
-        if (header) header.textContent = text;
-        if (profileBalance) profileBalance.textContent = text;
-        if (rewardBalance) rewardBalance.textContent = text;
-    }
+function renderCart() {
+    writeStoredValue(STORAGE_KEYS.cart, cart.map(item => item.name));
 
-    function getGroupedCart() {
-        const grouped = new Map();
-        cart.forEach(item => {
-            if (!grouped.has(item.name)) grouped.set(item.name, { ...item, quantity: 0 });
-            grouped.get(item.name).quantity += 1;
-        });
-        return [...grouped.values()];
-    }
+    const grouped = getGroupedCart();
+    const totalQuantity = cart.length;
+    const total = cart.reduce((sum, item) => sum + item.price, 0);
 
-    function renderCart() {
-        const grouped = getGroupedCart();
-        const totalQuantity = cart.length;
-        const total = cart.reduce((sum, item) => sum + item.price, 0);
-        const count = document.getElementById("cartCount");
-        count.textContent = totalQuantity > 99 ? "99+" : String(totalQuantity);
-        count.hidden = totalQuantity === 0;
-        document.getElementById("cartItems").innerHTML = grouped.length ? grouped.map(item => `
+    const count = document.getElementById("cartCount");
+    count.textContent = totalQuantity > 99 ? "99+" : String(totalQuantity);
+    count.hidden = totalQuantity === 0;
+
+    document.getElementById("cartItems").innerHTML = grouped.length
+        ? grouped.map(item => `
             <article class="cart-line">
                 <div>
-                    <p class="cart-line-name">${escapeHTML(dishName(item))} <span aria-label="${language === "lt" ? "Kiekis" : "Quantity"}">×${item.quantity}</span></p>
-                    <p class="cart-line-meta">${formatMoney(item.price)} / ${t("perItem")}</p>
+                    <p class="cart-line-name">${escapeHTML(item.name)} <span aria-label="Kiekis">×${item.quantity}</span></p>
+                    <p class="cart-line-meta">${formatMoney(item.price)} / vnt.</p>
                 </div>
                 <div class="cart-line-right">
                     <strong class="cart-line-total">${formatMoney(item.price * item.quantity)}</strong>
                     <div class="cart-line-actions">
-                        <button class="cart-qty-button" type="button" data-cart-action="decrease" data-item="${escapeHTML(item.name)}" aria-label="${t("decrease")} ${escapeHTML(dishName(item))}">−</button>
+                        <button class="cart-qty-button" type="button"
+                            data-cart-action="decrease" data-item="${escapeHTML(item.name)}"
+                            aria-label="${currentLanguage === "en" ? "Decrease" : "Sumažinti"} ${escapeHTML(item.name)} quantity">−</button>
                         <span class="cart-qty-value">${item.quantity}</span>
-                        <button class="cart-qty-button" type="button" data-cart-action="increase" data-item="${escapeHTML(item.name)}" aria-label="${t("increase")} ${escapeHTML(dishName(item))}">+</button>
-                        <button class="cart-remove" type="button" data-cart-action="remove" data-item="${escapeHTML(item.name)}">${t("remove")}</button>
+                        <button class="cart-qty-button" type="button"
+                            data-cart-action="increase" data-item="${escapeHTML(item.name)}"
+                            aria-label="${currentLanguage === "en" ? "Increase" : "Padidinti"} ${escapeHTML(item.name)} quantity">+</button>
+                        <button class="cart-remove" type="button"
+                            data-cart-action="remove" data-item="${escapeHTML(item.name)}">${t("remove")}</button>
                     </div>
                 </div>
-            </article>`).join("") : `<div class="cart-empty"><span class="cart-empty-icon" aria-hidden="true">🛒</span>${t("cartEmpty")}<br>${t("chooseDishes")}</div>`;
-        document.getElementById("cartTotal").textContent = formatMoney(total);
-        document.getElementById("order").disabled = totalQuantity === 0;
-        saveCart();
-        renderBalance();
+            </article>
+        `).join("")
+        : `<div class="cart-empty"><span class="cart-empty-icon" aria-hidden="true">🛒</span>${t("emptyCart")}<br>${t("chooseDishes")}</div>`;
+
+    document.getElementById("cartTotal").textContent = formatMoney(total);
+    document.getElementById("order").disabled = totalQuantity === 0;
+}
+
+function add(index) {
+    if (!items[index]) return;
+    cart.push(items[index]);
+    renderCart();
+}
+
+function openCart() {
+    const overlay = document.getElementById("cartOverlay");
+
+    overlay.hidden = false;
+    document.getElementById("cartButton").setAttribute("aria-expanded", "true");
+    syncOverlayState();
+    document.getElementById("cartClose").focus();
+}
+
+function closeCart() {
+    document.getElementById("cartOverlay").hidden = true;
+    document.getElementById("cartButton").setAttribute("aria-expanded", "false");
+    syncOverlayState();
+    document.getElementById("cartButton").focus();
+}
+
+document.getElementById("cartButton").addEventListener("click", openCart);
+document.getElementById("cartClose").addEventListener("click", closeCart);
+
+document.getElementById("cartOverlay").addEventListener("click", event => {
+    if (event.target.id === "cartOverlay") closeCart();
+});
+
+document.getElementById("cartItems").addEventListener("click", event => {
+    const button = event.target.closest("button[data-cart-action]");
+    if (!button) return;
+
+    const action = button.dataset.cartAction;
+    const name = button.dataset.item;
+    const index = cart.findIndex(item => item.name === name);
+
+    if (index < 0) return;
+
+    if (action === "increase") {
+        const item = items.find(product => product.name === name);
+        if (item) cart.push(item);
+    } else if (action === "decrease") {
+        cart.splice(index, 1);
+    } else if (action === "remove") {
+        cart = cart.filter(item => item.name !== name);
     }
 
-    function add(index) {
-        if (!items[index]) return;
-        cart.push({ ...items[index] });
-        renderCart();
-    }
-    window.add = add; // suderinamumas su senais nuorodiniais meniu veiksmais.
+    renderCart();
+});
 
-    function openCart() {
-        const overlay = document.getElementById("cartOverlay");
-        overlay.hidden = false;
-        document.getElementById("cartButton").setAttribute("aria-expanded", "true");
-        syncOverlayState();
-        document.getElementById("cartClose").focus();
-    }
-    function closeCart() {
-        document.getElementById("cartOverlay").hidden = true;
-        document.getElementById("cartButton").setAttribute("aria-expanded", "false");
-        syncOverlayState();
-        document.getElementById("cartButton").focus();
-    }
-    document.getElementById("cartButton")?.addEventListener("click", openCart);
-    document.getElementById("cartClose")?.addEventListener("click", closeCart);
-    document.getElementById("cartOverlay")?.addEventListener("click", event => {
-        if (event.target.id === "cartOverlay") closeCart();
-    });
-    document.getElementById("cartItems")?.addEventListener("click", event => {
-        const button = event.target.closest("button[data-cart-action]");
-        if (!button) return;
-        const action = button.dataset.cartAction;
-        const name = button.dataset.item;
-        const index = cart.findIndex(item => item.name === name);
-        if (index < 0) return;
-        if (action === "increase") {
-            const item = items.find(product => product.name === name);
-            if (item) cart.push({ ...item });
-        } else if (action === "decrease") {
-            cart.splice(index, 1);
-        } else if (action === "remove") {
-            cart = cart.filter(item => item.name !== name);
-        }
-        renderCart();
-    });
+function syncOverlayState() {
+    const isOpen =
+        !document.getElementById("cartOverlay").hidden ||
+        !document.getElementById("deliveryOverlay").hidden;
 
-    function syncOverlayState() {
-        const isOpen = !document.getElementById("cartOverlay").hidden || !document.getElementById("deliveryOverlay").hidden;
-        document.body.classList.toggle("overlay-open", isOpen);
-        document.querySelector(".site-header").inert = isOpen;
-        document.querySelector("main").inert = isOpen;
-    }
+    document.body.classList.toggle("overlay-open", isOpen);
+    document.querySelector(".site-header").inert = isOpen;
+    document.querySelector("main").inert = isOpen;
+}
 
-    // Užsakymų istorija rodoma profilyje; kiekvienas įrašas turi išplečiamą detalių dalį.
-    function renderHistory() {
-        const list = document.getElementById("historyList");
-        const count = document.getElementById("historyCount");
-        if (!list || !count) return;
-        const totalOrders = orderHistory.length;
-        count.textContent = `${totalOrders} ${language === "lt" ? (totalOrders === 1 ? "užsakymas" : "užsakymų") : t("orders")}`;
-        if (!totalOrders) {
-            list.innerHTML = `<div class="empty-history">${t("noOrders")}</div>`;
-            return;
-        }
-        list.innerHTML = orderHistory.map(order => {
-            const dateLabel = formatDate(order.createdAt);
-            const orderItems = Array.isArray(order.items) ? order.items : [];
-            const totalItems = orderItems.reduce((sum, item) => sum + Math.max(1, Number(item.quantity) || 1), 0);
-            const status = translatedStep(statusIndex(order.status));
-            const detailLines = orderItems.map(item => {
-                const quantity = Math.max(1, Number(item.quantity) || 1);
-                const inferred = items.find(product => product.name === item.name);
-                const orderRestaurantId = item.restaurantId || inferred?.restaurantId;
-                const restaurant = orderRestaurantId ? restaurantName(orderRestaurantId) : (item.restaurant || "");
-                return `<div class="order-detail-line">
-                    <div><strong>${escapeHTML(dishName(item))}</strong><small>${escapeHTML(restaurant)}</small></div>
-                    <span>×${quantity}</span>
-                    <strong>${formatMoney((Number(item.price) || 0) * quantity)}</strong>
-                </div>`;
-            }).join("");
-            return `
-                <article class="history-card">
-                    <div class="history-top">
-                        <div><div class="history-id">${t("orderNumber")} #${escapeHTML(order.id)}</div><div class="history-date">${escapeHTML(dateLabel)}</div></div>
-                        <span class="history-status">${escapeHTML(status)}</span>
-                    </div>
-                    <div class="history-bottom history-summary-line"><span>${totalItems} ${t("items")}</span><strong class="history-total">${formatMoney(Number(order.total) || 0)}</strong></div>
-                    <details class="order-detail-expand">
-                        <summary>${t("orderDetails")}</summary>
-                        <div class="order-detail-content">
-                            ${detailLines}
-                            <div class="order-detail-total"><span>${t("total")}</span><strong>${formatMoney(Number(order.total) || 0)}</strong></div>
-                            <div class="order-detail-meta"><span>${t("status")}</span><strong>${escapeHTML(status)}</strong><span>${escapeHTML(dateLabel)}</span></div>
-                        </div>
-                    </details>
-                </article>`;
-        }).join("");
-    }
+function closeDelivery() {
+    document.getElementById("deliveryOverlay").hidden = true;
+    hideLevelUp();
+    setTab("menu");
+    syncOverlayState();
+    document.getElementById("menu-title").focus({ preventScroll: true });
+}
 
-    function renderProfile() {
-        document.getElementById("profileDisplayName").textContent = profile.name || DEFAULT_PROFILE.name;
-        document.getElementById("profileNameInput").value = profile.name || DEFAULT_PROFILE.name;
-        document.getElementById("profileLevelLabel").textContent = `${getCurrentLevel()} ${t("level").toLocaleLowerCase(language === "lt" ? "lt-LT" : "en-US")}`;
-        renderProfileAvatar();
-        renderBalance();
-        renderNameCooldown();
-        renderHistory();
-        applyTheme();
-    }
+document.getElementById("deliveryBack").addEventListener("click", closeDelivery);
+document.getElementById("deliveryFinish").addEventListener("click", closeDelivery);
 
-    function renderProfileAvatar() {
-        const headerAvatar = document.getElementById("headerAvatar");
-        const profileAvatar = document.getElementById("profileAvatarPreview");
-        [headerAvatar, profileAvatar].forEach(element => {
-            if (!element) return;
-            element.replaceChildren();
-            if (profile.picture && /^data:image\/(png|jpeg|webp|gif);base64,/i.test(profile.picture)) {
-                const image = document.createElement("img");
-                image.src = profile.picture;
-                image.alt = language === "lt" ? "Profilio nuotrauka" : "Profile picture";
-                element.appendChild(image);
-            } else {
-                element.textContent = (profile.name || "B").trim().charAt(0).toLocaleUpperCase(language === "lt" ? "lt-LT" : "en-US") || "B";
-            }
-        });
-    }
+document.addEventListener("keydown", event => {
+    const overlay = ["levelUpOverlay", "deliveryOverlay", "cartOverlay"]
+        .map(id => document.getElementById(id))
+        .find(element => !element.hidden);
 
-    function formatRemaining(ms) {
-        const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-        const minutes = Math.floor(totalSeconds / 60);
-        const seconds = totalSeconds % 60;
-        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    }
-    function isNameChangeAvailable() {
-        return !profile.nameLastChangedAt || Date.now() >= Number(profile.nameLastChangedAt) + NAME_COOLDOWN_MS;
-    }
-    function renderNameCooldown() {
-        const status = document.getElementById("nameCooldownStatus");
-        const saveButton = document.getElementById("saveProfileName");
-        const input = document.getElementById("profileNameInput");
-        if (!status || !saveButton || !input) return;
-        const available = isNameChangeAvailable();
-        const sameName = input.value.trim() === (profile.name || DEFAULT_PROFILE.name);
-        saveButton.disabled = !available || sameName;
-        status.textContent = available ? t("nameAvailable") : t("nameCooldown", {
-            time: formatRemaining(Number(profile.nameLastChangedAt) + NAME_COOLDOWN_MS - Date.now())
-        });
-    }
+    if (!overlay) return;
 
-    document.getElementById("profileNameInput")?.addEventListener("input", renderNameCooldown);
-    document.getElementById("profileNameForm")?.addEventListener("submit", event => {
+    if (event.key === "Escape") {
         event.preventDefault();
-        const input = document.getElementById("profileNameInput");
-        const nextName = input.value.trim();
-        if (nextName.length < 2 || nextName.length > 30) {
-            showToast(t("nameInvalid"));
-            return;
-        }
-        if (nextName === profile.name) {
-            showToast(t("nameSame"));
-            return;
-        }
-        if (!isNameChangeAvailable()) {
-            renderNameCooldown();
-            return;
-        }
-        profile.name = nextName;
-        profile.nameLastChangedAt = Date.now();
-        writeStoredValue(STORAGE_KEYS.profile, profile);
-        renderProfile();
-        showToast(t("nameSaved"));
-    });
-    setInterval(renderNameCooldown, 1000);
 
-    document.getElementById("avatarUpload")?.addEventListener("change", event => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        if (!file.type.startsWith("image/")) {
-            showToast(t("photoInvalid"));
-            event.target.value = "";
-            return;
+        if (overlay.id === "levelUpOverlay") {
+            hideLevelUp();
+        } else if (overlay.id === "deliveryOverlay") {
+            closeDelivery();
+        } else {
+            closeCart();
         }
-        if (file.size > 8 * 1024 * 1024) {
-            showToast(t("photoTooLarge"));
-            event.target.value = "";
-            return;
-        }
-        const objectUrl = URL.createObjectURL(file);
-        const image = new Image();
-        image.onload = () => {
-            try {
-                const side = Math.min(image.naturalWidth, image.naturalHeight);
-                const sx = (image.naturalWidth - side) / 2;
-                const sy = (image.naturalHeight - side) / 2;
-                const canvas = document.createElement("canvas");
-                canvas.width = 512;
-                canvas.height = 512;
-                const context = canvas.getContext("2d");
-                context.drawImage(image, sx, sy, side, side, 0, 0, 512, 512);
-                profile.picture = canvas.toDataURL("image/jpeg", 0.84);
-                writeStoredValue(STORAGE_KEYS.profile, profile);
-                renderProfileAvatar();
-                showToast(t("photoSaved"));
-            } catch (error) {
-                console.warn("Nepavyko apdoroti profilio nuotraukos:", error);
-                showToast(t("photoError"));
-            } finally {
-                URL.revokeObjectURL(objectUrl);
-                event.target.value = "";
-            }
-        };
-        image.onerror = () => {
-            URL.revokeObjectURL(objectUrl);
-            event.target.value = "";
-            showToast(t("photoError"));
-        };
-        image.src = objectUrl;
-    });
 
-    // Profilio nustatymai.
-    document.getElementById("favoritesButton")?.addEventListener("click", () => showToast(t("favoritesNotice")));
-    document.getElementById("settingsButton")?.addEventListener("click", () => {
-        const panel = document.getElementById("settingsPanel");
-        const button = document.getElementById("settingsButton");
-        panel.hidden = !panel.hidden;
-        button.setAttribute("aria-expanded", String(!panel.hidden));
-    });
-    document.querySelectorAll("[data-theme-choice]").forEach(button => button.addEventListener("click", () => {
-        theme = button.dataset.themeChoice === "dark" ? "dark" : "light";
-        applyTheme();
+        return;
+    }
+
+    if (event.key !== "Tab") return;
+
+    const buttons = [...overlay.querySelectorAll("button:not(:disabled)")]
+        .filter(button => button.getClientRects().length);
+
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+    const current = document.activeElement;
+
+    if (event.shiftKey && (current === first || !buttons.includes(current))) {
+        event.preventDefault();
+        last?.focus();
+    } else if (!event.shiftKey && (current === last || !buttons.includes(current))) {
+        event.preventDefault();
+        first?.focus();
+    }
+});
+
+renderCart();
+
+// Užsakymo eiga rodoma viso ekrano lange po demonstracinio užsakymo.
+let displayedOrder = null;
+
+function getStepDescriptions() {
+    return currentLanguage === "en"
+        ? [
+            t("placedDescription"),
+            t("preparingDescription"),
+            t("onTheWayDescription"),
+            t("deliveredDescription")
+        ]
+        : [
+            "Tavo užsakymas perduotas virtuvei.",
+            "Virtuvė jau ruošia tavo patiekalus.",
+            "Kurjeris paėmė užsakymą ir jau pakeliui.",
+            "Užsakymas pristatytas. Skanaus!"
+        ];
+}
+
+function showStep(number) {
+    const labels = getLocalizedStepNames();
+    const descriptions = getStepDescriptions();
+
+    document.getElementById("steps").innerHTML = labels.map((step, index) =>
+        `<li class="${index <= number ? "done" : ""} ${index === number ? "now" : ""}"${
+            index === number ? ' aria-current="step"' : ""
+        }>${step}</li>`
+    ).join("");
+
+    if (number < 0) return;
+
+    document.getElementById("deliveryTitle").textContent = labels[number];
+    document.getElementById("deliverySubtitle").textContent = descriptions[number];
+
+    document.querySelector(".delivery-symbol").classList.toggle(
+        "is-delivered",
+        number === 3
+    );
+
+    document.getElementById("deliveryFinish").hidden = number !== 3;
+}
+
+showStep(-1);
+
+document.getElementById("order").onclick = function() {
+    if (!cart.length) return;
+
+    const count = cart.length;
+
+    const groupedItems = getGroupedCart().map(({
+        name,
+        price,
+        quantity,
+        restaurant,
+        restaurantId
+    }) => ({
+        name,
+        price,
+        quantity,
+        restaurant,
+        restaurantId
     }));
-    document.getElementById("deleteAccountButton")?.addEventListener("click", () => {
-        if (!window.confirm(t("deleteConfirm"))) return;
-        [STORAGE_KEYS.cart, STORAGE_KEYS.history, STORAGE_KEYS.xp, STORAGE_KEYS.reviews,
-            STORAGE_KEYS.profile, STORAGE_KEYS.balance, STORAGE_KEYS.claimedLevels].forEach(key => localStorage.removeItem(key));
-        cart = [];
-        orderHistory = [];
-        userReviews = [];
-        xp = 0;
-        balance = 0;
-        claimedLevels = [];
-        profile = { ...DEFAULT_PROFILE };
-        saveCart();
-        saveHistory();
-        saveXP();
-        saveBalance();
-        writeStoredValue(STORAGE_KEYS.profile, profile);
-        renderProfile();
-        renderRestaurants();
-        renderRestaurantReviews();
-        renderCart();
-        renderLevelCenter();
-        showToast(t("accountDeleted"));
-    });
 
-    // Lygių sistema ir tikras balanso papildymas (šiame demo – localStorage).
-    function getCurrentLevel() {
-        return Math.floor(xp / 100) + 1;
-    }
-    function getLevelReward(level) {
-        if (level % 5 === 0) return 25 + (Math.floor(level / 5) - 1) * 25;
-        const regularRewards = [4, 7, 9, 6, 11, 8, 13, 10, 15, 7, 12];
-        return regularRewards[(level - 2) % regularRewards.length];
-    }
-    function grantLevelRewards(previousLevel, newLevel) {
-        let earnedAmount = 0;
-        for (let level = Math.max(2, previousLevel + 1); level <= newLevel; level++) {
-            if (claimedLevels.includes(level)) continue;
-            earnedAmount += getLevelReward(level);
-            claimedLevels.push(level);
-        }
-        if (earnedAmount > 0) {
-            writeStoredValue(STORAGE_KEYS.claimedLevels, claimedLevels);
-            balance = Math.round((balance + earnedAmount) * 100) / 100;
-            saveBalance();
-        }
-        return earnedAmount;
-    }
+    const total = cart.reduce((sum, item) => sum + item.price, 0);
 
-    // Vienkartinė migracija: esamus XP lygius atžymime kaip apdovanotus ir pridedame jų rewardus.
-    // Tai apsaugo nuo pakartotinio atlygio skyrimo po atnaujinimo.
-    if (localStorage.getItem(STORAGE_KEYS.claimedLevels) === null) {
-        const migratedReward = grantLevelRewards(1, getCurrentLevel());
-        writeStoredValue(STORAGE_KEYS.claimedLevels, claimedLevels);
-        if (migratedReward > 0) console.info(`Pradinis lygių rewardų migravimas: +${migratedReward} €`);
-    }
+    const order = {
+        id: Date.now(),
+        createdAt: new Date().toISOString(),
+        items: groupedItems,
+        total,
+        status: getLocalizedStepNames()[0],
+        statusIndex: 0
+    };
 
-    function renderLevelUI() {
-        const level = getCurrentLevel();
-        const progressXP = xp % 100;
-        document.getElementById("lvl").textContent = level;
-        document.getElementById("xp").textContent = progressXP;
-        document.getElementById("xpfill").style.width = `${progressXP}%`;
-        const big = document.getElementById("levelBig");
-        if (big) big.textContent = level;
-        const progressText = document.getElementById("levelProgressText");
-        if (progressText) progressText.textContent = `${progressXP} / 100 XP`;
-        const progressFill = document.getElementById("levelProgressFill");
-        if (progressFill) progressFill.style.width = `${progressXP}%`;
-        const progressBar = document.getElementById("levelProgressBar");
-        if (progressBar) progressBar.setAttribute("aria-valuenow", String(progressXP));
-        const nextText = document.getElementById("levelNextText");
-        if (nextText) nextText.textContent = t("nextLevel", { xp: 100 - progressXP, level: level + 1 });
-        const total = document.getElementById("totalXP");
-        if (total) total.textContent = `${xp.toLocaleString(language === "lt" ? "lt-LT" : "en-GB")} XP`;
-        const milestones = document.getElementById("milestoneCount");
-        if (milestones) milestones.textContent = Math.floor(level / 5);
-        renderBalance();
-    }
+    orderHistory.unshift(order);
+    saveHistory();
+    renderHistory();
 
-    function renderLevelCenter() {
-        renderLevelUI();
-        const currentLevel = getCurrentLevel();
-        const firstLevel = Math.max(2, currentLevel - 2);
-        const lastLevel = Math.max(10, currentLevel + 7);
-        const rewardCards = [];
-        for (let level = firstLevel; level <= lastLevel; level++) {
-            const milestone = level % 5 === 0;
-            const earned = claimedLevels.includes(level);
-            const amount = getLevelReward(level);
-            rewardCards.push(`
-                <article class="reward-card ${earned ? "earned" : "locked"} ${milestone ? "milestone" : ""}">
-                    <div class="reward-card-icon" aria-hidden="true">${milestone ? "🏆" : "🎁"}</div>
-                    <div class="reward-card-info">
-                        <span class="reward-level">${language === "lt" ? "LYGIS" : "LEVEL"} ${level}${milestone ? " · MILESTONE" : ""}</span>
-                        <strong>${milestone ? t("milestoneReward") : t("levelReward")}</strong>
-                        <small>${earned ? t("rewardUnlocked") : t("reachLevel")}</small>
-                    </div>
-                    <div class="reward-card-amount"><strong>${formatReward(amount)}</strong><span>${earned ? t("received") : t("locked")}</span></div>
-                </article>`);
-        }
-        document.getElementById("rewardList").innerHTML = rewardCards.join("");
-    }
+    cart = [];
+    renderCart();
 
-    function hideLevelUp() {
-        const overlay = document.getElementById("levelUpOverlay");
-        if (!overlay) return;
-        overlay.classList.remove("visible");
-        const wasVisible = !overlay.hidden;
-        overlay.hidden = true;
-        if (wasVisible && !document.getElementById("deliveryOverlay").hidden) document.getElementById("deliveryTitle").focus();
-        if (levelUpTimer) {
-            clearTimeout(levelUpTimer);
-            levelUpTimer = null;
-        }
-    }
-    function showLevelUp(level, earnedAmount, levelsGained) {
-        const overlay = document.getElementById("levelUpOverlay");
-        document.getElementById("levelUpNumber").textContent = level;
-        document.getElementById("levelUpReward").textContent = levelsGained > 1
-            ? t("levelUpMultiple", { levels: levelsGained, amount: formatReward(earnedAmount) })
-            : t("levelUpSingle", { amount: formatReward(earnedAmount) });
-        overlay.hidden = false;
-        requestAnimationFrame(() => {
-            overlay.classList.add("visible");
-            document.getElementById("levelUpClose").focus();
-        });
-        if (levelUpTimer) clearTimeout(levelUpTimer);
-        levelUpTimer = setTimeout(hideLevelUp, 4200);
-    }
-    function addXP(amountInput) {
-        const amount = Math.max(0, Math.floor(Number(amountInput) || 0));
-        if (!amount) return;
-        const previousLevel = getCurrentLevel();
-        xp += amount;
-        const newLevel = getCurrentLevel();
-        saveXP();
-        const earnedAmount = grantLevelRewards(previousLevel, newLevel);
-        renderLevelUI();
-        if (newLevel > previousLevel) {
-            renderLevelCenter();
-            showLevelUp(newLevel, earnedAmount, newLevel - previousLevel);
-        }
-        if (!document.getElementById("profileView").hidden) renderProfile();
-    }
-    saveXP();
-    document.addEventListener("visibilitychange", () => {
-        if (document.visibilityState === "hidden") {
-            saveCart(); saveXP(); saveBalance();
-        }
-    });
-    window.addEventListener("pagehide", () => { saveCart(); saveXP(); saveBalance(); });
-    window.addEventListener("beforeunload", () => { saveCart(); saveXP(); saveBalance(); });
+    document.getElementById("cartOverlay").hidden = true;
+    document.getElementById("cartButton").setAttribute("aria-expanded", "false");
 
-    // Užsakymo pateikimas ir pristatymo simuliacija.
-    const stepDescriptions = ["Tavo užsakymas perduotas virtuvei.", "Virtuvė jau ruošia tavo patiekalus.", "Kurjeris paėmė užsakymą ir jau pakeliui.", "Užsakymas pristatytas. Skanaus!"];
-    let displayedOrder = null;
-    function showStep(index) {
-        document.getElementById("steps").innerHTML = stepNames.map((step, itemIndex) =>
-            `<li class="${itemIndex <= index ? "done" : ""} ${itemIndex === index ? "now" : ""}"${itemIndex === index ? ' aria-current="step"' : ""}>${translatedStep(itemIndex)}</li>`
-        ).join("");
-        if (index < 0) return;
-        document.getElementById("deliveryTitle").textContent = translatedStep(index);
-        document.getElementById("deliverySubtitle").textContent = translatedStepDescription(index);
-        document.querySelector(".delivery-symbol").classList.toggle("is-delivered", index === 3);
-        document.getElementById("deliveryFinish").hidden = index !== 3;
-    }
-    function updateDeliveryLanguage() {
-        if (displayedOrder) {
-            const index = statusIndex(displayedOrder.status);
-            if (!document.getElementById("deliveryOverlay").hidden) showStep(index);
-        }
-        const back = document.getElementById("deliveryBack");
-        if (back) back.textContent = t("backToMenu");
-        const finish = document.getElementById("deliveryFinish");
-        if (finish) finish.textContent = t("finish");
-        const orderProgress = document.getElementById("steps-title");
-        if (orderProgress) orderProgress.textContent = t("orderProgress");
-        const amount = document.querySelector(".delivery-total span");
-        if (amount) amount.textContent = t("orderAmount");
-        const levelUpTitle = document.querySelector(".level-up-card h2");
-        if (levelUpTitle) levelUpTitle.textContent = t("levelUpTitle");
-        const levelUpClose = document.getElementById("levelUpClose");
-        if (levelUpClose) levelUpClose.textContent = t("great");
-    }
-    showStep(-1);
+    displayedOrder = order;
 
-    document.getElementById("order")?.addEventListener("click", () => {
-        if (!cart.length) return;
-        const count = cart.length;
-        const groupedItems = getGroupedCart().map(({ name, price, quantity, restaurant, restaurantId }) => ({
-            name, price, quantity, restaurant, restaurantId
-        }));
-        const total = cart.reduce((sum, item) => sum + item.price, 0);
-        const order = {
-            id: Date.now(), createdAt: new Date().toISOString(), items: groupedItems,
-            total, status: stepNames[0]
-        };
-        orderHistory.unshift(order);
-        saveHistory();
-        renderHistory();
-        cart = [];
-        renderCart();
-        document.getElementById("cartOverlay").hidden = true;
-        document.getElementById("cartButton").setAttribute("aria-expanded", "false");
-        displayedOrder = order;
-        document.getElementById("deliveryNumber").textContent = `${t("orderNumber")} #${order.id}`;
-        document.getElementById("deliveryTotal").textContent = formatMoney(order.total);
-        showStep(0);
-        document.getElementById("deliveryOverlay").hidden = false;
-        syncOverlayState();
-        document.getElementById("deliveryTitle").focus();
-        addXP(10 + count * 5);
-        stepNames.forEach((step, index) => setTimeout(() => {
+    document.getElementById("deliveryNumber").textContent = `Užsakymas #${order.id}`;
+    document.getElementById("deliveryTotal").textContent = formatMoney(order.total);
+
+    showStep(0);
+
+    document.getElementById("deliveryOverlay").hidden = false;
+    syncOverlayState();
+    document.getElementById("deliveryTitle").focus();
+
+    addXP(10 + count * 5);
+
+    getLocalizedStepNames().forEach((step, index) => {
+        setTimeout(() => {
             if (displayedOrder === order) showStep(index);
-            order.status = step;
+
+            order.status = getLocalizedStepNames()[index];
+            order.statusIndex = index;
+
             saveHistory();
             renderHistory();
+
             if (index === 3) addXP(20);
-        }, index * 4000));
+        }, index * 4000);
     });
+};
 
-    function closeDelivery() {
-        document.getElementById("deliveryOverlay").hidden = true;
-        hideLevelUp();
-        setView("menu");
-        syncOverlayState();
-        document.getElementById("menu-title").focus({ preventScroll: true });
-    }
-    document.getElementById("deliveryBack")?.addEventListener("click", closeDelivery);
-    document.getElementById("deliveryFinish")?.addEventListener("click", closeDelivery);
-    document.getElementById("levelUpClose")?.addEventListener("click", hideLevelUp);
+// XP, lygiai ir demonstraciniai apdovanojimai.
+function getCurrentLevel() {
+    return Math.floor(xp / 100) + 1;
+}
 
-    document.addEventListener("keydown", event => {
-        const overlay = ["levelUpOverlay", "deliveryOverlay", "cartOverlay"]
-            .map(id => document.getElementById(id)).find(element => element && !element.hidden);
-        if (!overlay) return;
-        if (event.key === "Escape") {
-            event.preventDefault();
-            if (overlay.id === "levelUpOverlay") hideLevelUp();
-            else if (overlay.id === "deliveryOverlay") closeDelivery();
-            else closeCart();
-            return;
-        }
-        if (event.key !== "Tab") return;
-        const buttons = [...overlay.querySelectorAll("button:not(:disabled)")].filter(button => button.getClientRects().length);
-        const first = buttons[0];
-        const last = buttons[buttons.length - 1];
-        const current = document.activeElement;
-        if (event.shiftKey && (current === first || !buttons.includes(current))) {
-            event.preventDefault(); last?.focus();
-        } else if (!event.shiftKey && (current === last || !buttons.includes(current))) {
-            event.preventDefault(); first?.focus();
-        }
-    });
-
-    // Pagrindinis paleidimas.
-    function renderAll() {
-        renderRestaurants();
-        renderMenu();
-        renderRestaurantReviews();
-        renderCart();
-        renderHistory();
-        renderLevelUI();
-        renderProfileAvatar();
-        renderBalance();
+function getLevelReward(level) {
+    if (level % 5 === 0) {
+        return 25 + (Math.floor(level / 5) - 1) * 25;
     }
 
-    applyTheme();
-    applyLanguage();
-    renderAll();
-    setView("restaurants");
-})();
+    const regularRewards = [4, 7, 9, 6, 11, 8, 13, 10, 15, 7, 12];
+    return regularRewards[(level - 2) % regularRewards.length];
+}
+
+function getEarnedRewardTotal() {
+    return walletBalance;
+}
+
+function formatReward(amount) {
+    return "€" + Number(amount).toLocaleString("lt-LT");
+}
+
+function renderLevelUI() {
+    const level = getCurrentLevel();
+    const progressXP = xp % 100;
+    const percent = progressXP;
+
+    document.getElementById("lvl").textContent = level;
+    document.getElementById("xp").textContent = progressXP;
+    document.getElementById("xpfill").style.width = percent + "%";
+
+    const big = document.getElementById("levelBig");
+    if (big) big.textContent = level;
+
+    const progressText = document.getElementById("levelProgressText");
+    if (progressText) progressText.textContent = `${progressXP} / 100 XP`;
+
+    const progressFill = document.getElementById("levelProgressFill");
+    if (progressFill) progressFill.style.width = percent + "%";
+
+    const progressBar = document.getElementById("levelProgressBar");
+    if (progressBar) progressBar.setAttribute("aria-valuenow", String(progressXP));
+
+    const nextText = document.getElementById("levelNextText");
+    if (nextText) {
+        nextText.textContent = t("levelNext")
+            .replace("{xp}", String(100 - progressXP))
+            .replace("{level}", String(level + 1));
+    }
+
+    const total = document.getElementById("totalXP");
+    if (total) total.textContent = `${xp.toLocaleString("lt-LT")} XP`;
+
+    const balance = document.getElementById("rewardBalance");
+    if (balance) balance.textContent = formatReward(walletBalance);
+
+    const milestones = document.getElementById("milestoneCount");
+    if (milestones) milestones.textContent = Math.floor(level / 5);
+
+    const headerBalance = document.getElementById("headerBalance");
+    if (headerBalance) headerBalance.textContent = formatReward(walletBalance);
+
+    const profileBalance = document.getElementById("profileBalance");
+    if (profileBalance) profileBalance.textContent = formatReward(walletBalance);
+
+    const profileLevel = document.getElementById("profileLevelSummary");
+    if (profileLevel) {
+        profileLevel.textContent = `${level} ${
+            currentLanguage === "en" ? "level" : "lygis"
+        } · ${xp.toLocaleString("lt-LT")} XP`;
+    }
+}
+
+function renderLevelCenter() {
+    renderLevelUI();
+
+    const currentLevel = getCurrentLevel();
+    const firstLevel = Math.max(2, currentLevel - 2);
+    const lastLevel = Math.max(10, currentLevel + 7);
+    const rewardCards = [];
+
+    for (let level = firstLevel; level <= lastLevel; level++) {
+        const milestone = level % 5 === 0;
+        const earned = level <= currentLevel;
+        const amount = getLevelReward(level);
+
+        rewardCards.push(`
+            <article class="reward-card ${earned ? "earned" : "locked"} ${milestone ? "milestone" : ""}">
+                <div class="reward-card-icon" aria-hidden="true">${milestone ? "🏆" : "🎁"}</div>
+                <div class="reward-card-info">
+                    <span class="reward-level">${currentLanguage === "en" ? "LEVEL" : "LYGIS"} ${level}${milestone ? " · MILESTONE" : ""}</span>
+                    <strong>${milestone ? t("milestoneReward") : t("regularReward")}</strong>
+                    <small>${earned ? t("rewardUnlocked") : t("rewardLocked")}</small>
+                </div>
+                <div class="reward-card-amount">
+                    <strong>${formatReward(amount)}</strong>
+                    <span>${earned ? t("received") : t("locked")}</span>
+                </div>
+            </article>
+        `);
+    }
+
+    document.getElementById("rewardList").innerHTML = rewardCards.join("");
+}
+
+function hideLevelUp() {
+    const overlay = document.getElementById("levelUpOverlay");
+
+    overlay.classList.remove("visible");
+
+    const wasVisible = !overlay.hidden;
+    overlay.hidden = true;
+
+    if (wasVisible && !document.getElementById("deliveryOverlay").hidden) {
+        document.getElementById("deliveryTitle").focus();
+    }
+
+    if (levelUpTimer) {
+        clearTimeout(levelUpTimer);
+        levelUpTimer = null;
+    }
+}
+
+function showLevelUp(level, earnedAmount, levelsGained) {
+    const overlay = document.getElementById("levelUpOverlay");
+
+    document.getElementById("levelUpNumber").textContent = level;
+
+    document.getElementById("levelUpReward").textContent = currentLanguage === "en"
+        ? (
+            levelsGained > 1
+                ? `You gained ${levelsGained} levels and received ${formatReward(earnedAmount)}!`
+                : `${formatReward(earnedAmount)} was added to your balance!`
+        )
+        : (
+            levelsGained > 1
+                ? `Peršokai ${levelsGained} lygius ir gavai ${formatReward(earnedAmount)} demo rewardų!`
+                : `Gavai ${formatReward(earnedAmount)} į demonstracinį balansą!`
+        );
+
+    overlay.hidden = false;
+
+    requestAnimationFrame(() => {
+        overlay.classList.add("visible");
+        document.getElementById("levelUpClose").focus();
+    });
+
+    if (levelUpTimer) clearTimeout(levelUpTimer);
+    levelUpTimer = setTimeout(hideLevelUp, 4200);
+}
+
+function addXP(amountToAdd) {
+    const amount = Math.max(0, Math.floor(Number(amountToAdd) || 0));
+    if (!amount) return;
+
+    const previousLevel = getCurrentLevel();
+
+    xp += amount;
+
+    const newLevel = getCurrentLevel();
+
+    saveXP();
+
+    let earnedAmount = 0;
+
+    if (newLevel > rewardedThroughLevel) {
+        for (
+            let level = rewardedThroughLevel + 1;
+            level <= newLevel;
+            level++
+        ) {
+            earnedAmount += getLevelReward(level);
+        }
+
+        rewardedThroughLevel = newLevel;
+        walletBalance = Math.round((walletBalance + earnedAmount) * 100) / 100;
+
+        writeStoredValue(STORAGE_KEYS.rewardLevel, rewardedThroughLevel);
+        saveWallet();
+    }
+
+    renderLevelUI();
+    renderProfile();
+
+    if (newLevel > previousLevel) {
+        renderLevelCenter();
+        showLevelUp(newLevel, earnedAmount, newLevel - previousLevel);
+    }
+}
+
+// Pažanga ir krepšelis išsaugomi automatiškai uždarant / paslepiant puslapį.
+saveXP();
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") saveXP();
+});
+
+window.addEventListener("pagehide", saveXP);
+window.addEventListener("beforeunload", saveXP);
+
+window.addEventListener("pagehide", () => {
+    writeStoredValue(STORAGE_KEYS.cart, cart.map(item => item.name));
+});
+
+renderLevelUI();
+renderCart();
+renderHistory();
+renderProfile();
+
+setInterval(updateNameCooldown, 15000);
