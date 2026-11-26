@@ -24,6 +24,7 @@
                         </button>
                         <div class="user-menu" id="userMenu" hidden>
                             <button type="button" id="userMenuProfile" data-i18n="profile">Profilis</button>
+                            <button type="button" id="openAbout" data-i18n="about">Apie mus</button>
                             <button type="button" id="userMenuLogout" data-i18n="logout">Log out</button>
                             <label for="languageSelect" data-i18n="language">Kalba</label>
                             <select id="languageSelect" aria-label="Kalba">
@@ -213,13 +214,14 @@
                 <p class="settings-disclaimer" data-i18n="localDataNotice">Tai demonstracinė paskyra – duomenys saugomi tik šiame įrenginyje.</p>
             </section>
 
-            <section id="aboutView" hidden>
-    <button type="button" id="aboutBackButton" class="back-button" data-i18n="backToRestaurants"></button>
-    <h2 data-i18n="aboutTitle"></h2>
-    <p data-i18n="aboutIntro"></p>
-    <p data-i18n="aboutFeatures"></p>
-    <p class="demo-notice" data-i18n="aboutNotice"></p>
-</section>
+            <section id="aboutView" class="extra-view" aria-labelledby="aboutTitle" hidden>
+                <button class="text-back-button" id="aboutBackButton" type="button" data-i18n="backToRestaurants">← Visi restoranai</button>
+                <p class="restaurants-eyebrow">BOOMFOOD</p>
+                <h2 id="aboutTitle" data-i18n="aboutTitle">Apie BoomFood</h2>
+                <p data-i18n="aboutIntro">BoomFood yra demonstracinė maisto pristatymo platforma.</p>
+                <p data-i18n="aboutFeatures"></p>
+                <p class="settings-disclaimer" data-i18n="aboutNotice"></p>
+            </section>
 
             <section id="levelView" class="extra-view level-view" aria-labelledby="levelTitle" hidden>
                 <div class="level-view-heading">
@@ -346,5 +348,6 @@
         </div>
 
         <script src="js/script.js"></script>
+        <script src="js/about.js"></script>
     </body>
 </html>
