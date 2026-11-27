@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="lt">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#101713">
+        <title>BoomFood</title>
+        <link rel="stylesheet" href="css/style.css">
+        <link rel="stylesheet" href="css/catalog.css">
+    </head>
+    <body>
+        <header class="site-header">
+            <div class="wrap">
+                <button class="brand brand-home" id="homeButton" type="button" aria-label="BoomFood – grįžti į pagrindinį puslapį">
+                    <img class="brand-logo" src="images/boomfood-cyber.png" width="1200" height="150" alt="">
+                </button>
+                <button class="location-button header-location" type="button" data-open-location aria-haspopup="dialog">
+                    <span class="ui-icon icon-pin" aria-hidden="true"></span>
+                    <span id="headerLocationLabel">Vilnius</span>
+                    <span class="ui-icon icon-chevron" aria-hidden="true"></span>
+                </button>
+                <div class="header-right">
+                    <div class="header-user-wrap">
+                        <button class="avatar-button" id="profileButton" type="button" aria-label="Atidaryti paskyros meniu" aria-controls="userMenu" aria-expanded="false" title="Paskyra">
+                            <span class="user-avatar" id="headerAvatar" aria-hidden="true">B</span>
+                        </button>
+                        <div class="user-menu" id="userMenu" hidden>
+                            <div class="header-balance" aria-label="Vartotojo balansas">
+                                <span id="balanceLabel" data-i18n="balance">Balansas</span>
+                                <strong id="headerBalance">0,00 €</strong>
+                            </div>
+                            <button class="level level-button" id="levelButton" type="button" aria-label="Atidaryti lygių sistemą" aria-controls="levelView" title="Peržiūrėti lygį ir apdovanojimus">
+                                <span class="level-label">
+                                    <strong>
+                                        <span class="level-mini-badge" id="lvl">1</span> Lygis
+                                    </strong>
+                                    <span>
+                                        <span id="xp">0</span> / 100 XP
+                                    </span>
+                                </span>
+                                <span class="bar" aria-hidden="true">
+                                    <span id="xpfill"></span>
+                                </span>
+                            </button>
+                            <button type="button" id="userMenuProfile" data-i18n="profile">Profilis</button>
+                            <button type="button" id="openAbout" data-i18n="about">Apie mus</button>
+                            <button type="button" id="userMenuLogout" data-i18n="logout">Log out</button>
+                            <label for="languageSelect" data-i18n="language">Kalba</label>
+                            <select id="languageSelect" aria-label="Kalba">
+                                <option value="lt">Lietuvių</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="cart-icon-button" id="cartButton" type="button" aria-label="Atidaryti krepšelį" aria-controls="cartOverlay" aria-expanded="false" title="Krepšelis">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M3 4h2l2.1 10.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L21 8H6"/>
+                            <circle cx="9.5" cy="20" r="1.2"/>
+                            <circle cx="17.5" cy="20" r="1.2"/>
+                        </svg>
+                        <span class="cart-count" id="cartCount" hidden>0</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="wrap">
+            <section id="restaurantsView" class="restaurants-view" aria-labelledby="restaurantsTitle">
+                <section class="promotion" aria-labelledby="promotionTitle" aria-roledescription="karuselis">
+                    <h2 id="promotionTitle" class="visually-hidden" data-i18n="promotions">Pasiūlymai</h2>
+                    <div class="promotion-stage">
+                        <div class="promotion-track" id="promotionTrack" tabindex="0" aria-labelledby="promotionTitle"></div>
+                        <button class="rail-arrow promotion-previous" type="button" data-shift="promotionTrack" data-direction="-1" data-label="previousPromotion" aria-controls="promotionTrack" aria-label="Ankstesnis pasiūlymas">←</button>
+                        <button class="rail-arrow promotion-next" type="button" data-shift="promotionTrack" data-direction="1" data-label="nextPromotion" aria-controls="promotionTrack" aria-label="Kitas pasiūlymas">→</button>
+                    </div>
+                    <div class="promotion-controls">
+                        <div id="promotionPages" class="promotion-pages" role="group" aria-label="Pasiūlymai" data-label="promotions"></div>
+                        <button class="rail-arrow promotion-pause" id="promotionPause" type="button" aria-controls="promotionTrack" aria-label="Pristabdyti pasiūlymus"></button>
+                    </div>
+                </section>
+
+                <nav id="cuisineNav" class="cuisine-nav" aria-label="Restoranų kategorijos" data-label="cuisineCategories"></nav>
+
+                <section class="catalog-section" aria-labelledby="restaurantsTitle">
+                    <div class="catalog-heading">
+                        <h2 id="restaurantsTitle" tabindex="-1" data-i18n="restaurants">Restoranai</h2>
+                        <div class="catalog-actions">
+                            <button class="catalog-link" type="button" data-expand="restaurantList" aria-controls="restaurantList" aria-expanded="false" data-i18n="showAll">Rodyti viską</button>
+                            <button class="rail-arrow catalog-arrow" type="button" data-shift="restaurantList" data-direction="-1" data-label="previousRestaurants" aria-controls="restaurantList" aria-label="Ankstesni restoranai">←</button>
+                            <button class="rail-arrow catalog-arrow" type="button" data-shift="restaurantList" data-direction="1" data-label="nextRestaurants" aria-controls="restaurantList" aria-label="Kiti restoranai">→</button>
+                        </div>
+                    </div>
+                    <div id="restaurantList" class="restaurant-list catalog-track" tabindex="0" aria-labelledby="restaurantsTitle"></div>
+                    <p id="catalogEmpty" class="catalog-empty" role="status" hidden data-i18n="noFavourites">Dar neturi mėgstamiausių restoranų.</p>
+                </section>
+
+                <section class="catalog-section" id="nearbySection" aria-labelledby="nearbyTitle">
+                    <div class="catalog-heading">
+                        <h2 id="nearbyTitle" data-i18n="nearbyOffers">Pasiūlymai netoliese</h2>
+                        <div class="catalog-actions">
+                            <button class="catalog-link" type="button" data-expand="nearbyList" aria-controls="nearbyList" aria-expanded="false" data-i18n="showAll">Rodyti viską</button>
+                            <button class="rail-arrow catalog-arrow" type="button" data-shift="nearbyList" data-direction="-1" data-label="previousRestaurants" aria-controls="nearbyList" aria-label="Ankstesni restoranai">←</button>
+                            <button class="rail-arrow catalog-arrow" type="button" data-shift="nearbyList" data-direction="1" data-label="nextRestaurants" aria-controls="nearbyList" aria-label="Kiti restoranai">→</button>
+                        </div>
+                    </div>
+                    <div id="nearbyList" class="restaurant-list catalog-track" tabindex="0" aria-labelledby="nearbyTitle"></div>
+                </section>
+            </section>
+
+            <section id="menuView" class="restaurant-menu-view" hidden aria-labelledby="menu-title">
+                <div class="restaurant-cover">
+                    <img id="restaurantCoverImage" alt="" fetchpriority="high">
+                    <button class="restaurant-back-button" id="restaurantBackButton" type="button" data-label="allRestaurants" aria-label="Visi restoranai">
+                        <span aria-hidden="true">←</span> <span data-i18n="allRestaurants">Visi restoranai</span>
+                    </button>
+                </div>
+                <div class="restaurant-detail">
+                    <div class="restaurant-detail-icon" id="restaurantDetailIcon" aria-hidden="true"></div>
+                    <h1 class="menu-title" id="menu-title" tabindex="-1"></h1>
+                    <p class="restaurant-detail-meta">
+                        <span class="restaurant-rating" id="menuRating"></span>
+                        <span id="restaurantDetailCategory"></span>
+                    </p>
+                    <button class="catalog-link" type="button" id="restaurantInfoButton" aria-haspopup="dialog" data-i18n="restaurantInformation">Restorano informacija</button>
+                    <div class="restaurant-detail-actions">
+                        <button class="location-button detail-location" type="button" data-open-location aria-haspopup="dialog">
+                            <span class="ui-icon icon-pin" aria-hidden="true"></span>
+                            <span id="restaurantLocationLabel" data-i18n="chooseLocation">Pasirinkti vietą</span>
+                            <span class="ui-icon icon-chevron" aria-hidden="true"></span>
+                        </button>
+                        <button class="favorite-button" type="button" id="restaurantFavorite" aria-pressed="false" data-label="favourites" aria-label="Mėgstamiausi">
+                            <span aria-hidden="true">♡</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="menu-toolbar">
+                    <label class="menu-search">
+                        <span class="ui-icon icon-search" aria-hidden="true"></span>
+                        <span class="visually-hidden" data-i18n="searchMenu">Ieškoti meniu</span>
+                        <input type="search" id="menuSearch" autocomplete="off" spellcheck="false">
+                    </label>
+                    <nav class="menu-navigation" aria-label="Meniu skiltys" data-label="menuSections">
+                        <button type="button" data-menu-section="discover" aria-pressed="true" data-i18n="discover">Atrask</button>
+                        <button type="button" data-menu-section="offers" aria-pressed="false" data-i18n="promotions">Pasiūlymai</button>
+                        <button type="button" data-menu-section="featured" aria-pressed="false" data-i18n="featuredDishes">Rekomenduojame</button>
+                        <button type="button" data-menu-section="menu" aria-pressed="false" data-i18n="menu">Meniu</button>
+                    </nav>
+                </div>
+                <div class="restaurant-sections">
+                    <section id="restaurantOffers" class="catalog-section" aria-labelledby="restaurantOffersTitle">
+                        <div class="catalog-heading">
+                            <h2 id="restaurantOffersTitle" data-i18n="restaurantOffers">Pasiūlymai ir privalumai</h2>
+                        </div>
+                        <button type="button" class="restaurant-offer" id="restaurantRewards">
+                            <span class="offer-icon" aria-hidden="true">★</span>
+                            <span><strong data-i18n="orderRewards">Kaupk XP už užsakymus</strong>
+                                <span class="catalog-link" data-i18n="showDetails">Rodyti detales</span></span>
+                        </button>
+                    </section>
+                    <section id="restaurantFeatured" class="catalog-section" aria-labelledby="restaurantFeaturedTitle">
+                        <div class="catalog-heading">
+                            <h2 id="restaurantFeaturedTitle" data-i18n="featuredDishes">Rekomenduojame</h2>
+                            <button class="catalog-link" type="button" data-menu-section="menu" data-i18n="showAll">Rodyti viską</button>
+                        </div>
+                        <div class="catalog-track dish-track" id="featuredItems" tabindex="0" aria-labelledby="restaurantFeaturedTitle"></div>
+                    </section>
+                    <section id="restaurantDishes" class="catalog-section" aria-labelledby="restaurantDishesTitle">
+                        <div class="catalog-heading">
+                            <h2 id="restaurantDishesTitle" tabindex="-1" data-i18n="menu">Meniu</h2>
+                        </div>
+                        <div id="menu" class="dish-grid"></div>
+                        <p id="menuEmpty" class="catalog-empty" role="status" hidden data-i18n="noDishes">Pagal šią paiešką patiekalų nerasta.</p>
+                    </section>
+                </div>
+            </section>
+
+            <dialog class="dish-dialog" id="dishDialog" aria-labelledby="dishDialogTitle" aria-describedby="dishDialogDescription">
+                <div class="dish-dialog-layout">
+                    <div class="dish-dialog-body">
+                        <div class="dish-dialog-visual" id="dishDialogVisual">
+                            <img id="dishDialogImage" alt="" decoding="async">
+                        </div>
+                        <div class="dish-dialog-copy">
+                            <h2 id="dishDialogTitle"></h2>
+                            <p class="dish-dialog-price" id="dishDialogPrice"></p>
+                            <p class="dish-dialog-description" id="dishDialogDescription"></p>
+                        </div>
+                    </div>
+                    <button class="dish-dialog-close" id="dishDialogClose" type="button" data-label="close" aria-label="Uždaryti" autofocus>×</button>
+                    <div class="dish-dialog-footer">
+                        <div class="dish-quantity" role="group" data-label="dishQuantity" aria-label="Kiekis">
+                            <button id="dishQuantityDecrease" type="button" data-label="decreaseDishQuantity" aria-label="Sumažinti kiekį" disabled>−</button>
+                            <output id="dishQuantity" aria-live="polite" aria-atomic="true">1</output>
+                            <button id="dishQuantityIncrease" type="button" data-label="increaseDishQuantity" aria-label="Padidinti kiekį">+</button>
+                        </div>
+                        <button class="dish-dialog-add" id="dishDialogAdd" type="button">
+                            <span data-i18n="addDishToCart">Į krepšelį</span>
+                            <strong id="dishDialogTotal"></strong>
+                        </button>
+                    </div>
+                </div>
+            </dialog>
+
+            <dialog class="catalog-dialog" id="restaurantInfo" aria-labelledby="restaurantInfoTitle">
+                <div class="catalog-dialog-heading">
+                    <h2 id="restaurantInfoTitle" data-i18n="restaurantInformation">Restorano informacija</h2>
+                    <form method="dialog"><button class="rail-arrow" type="submit" data-label="close" aria-label="Uždaryti">×</button></form>
+                </div>
+                <p class="catalog-info-meta" id="restaurantDetailMeta"></p>
+                <p class="catalog-info-meta" id="menuReviewCount"></p>
+                <p data-i18n="demoNotice">Tikras maistas nebus pristatytas ir mokėti nereikia.</p>
+                <button class="secondary-button" id="openRestaurantReviews" type="button" data-i18n="viewReviews">Peržiūrėti atsiliepimus</button>
+            </dialog>
+
+            <dialog class="catalog-dialog" id="locationDialog" aria-labelledby="locationTitle">
+                <div class="catalog-dialog-heading">
+                    <h2 id="locationTitle" data-i18n="chooseLocation">Pasirinkti vietą</h2>
+                    <form method="dialog"><button class="rail-arrow" type="submit" data-label="close" aria-label="Uždaryti">×</button></form>
+                </div>
+                <form class="location-form" id="locationForm">
+                    <label for="locationInput" data-i18n="locationAddress">Adresas Vilniuje</label>
+                    <input id="locationInput" maxlength="90" autocomplete="off">
+                    <p data-i18n="locationHelp">Jei adreso neįvesi, rodysime Vilnių.</p>
+                    <button class="primary-button" type="submit" data-i18n="saveLocation">Išsaugoti vietą</button>
+                </form>
+            </dialog>
+
+
+
+            <section id="reviewsView" class="extra-view" aria-labelledby="reviewsTitle" hidden>
+                <button class="text-back-button" id="reviewsBackButton" type="button" data-i18n="backToRestaurant">← Grįžti į restoraną</button>
+                <div class="history-heading">
+                    <div>
+                        <p class="restaurants-eyebrow" data-i18n="restaurantReviews">RESTORANO ATSILIEPIMAI</p>
+                        <h2 id="reviewsTitle">Restorano atsiliepimai</h2>
+                        <p class="muted-note" id="reviewRestaurantName"></p>
+                    </div>
+                    <span class="rating-summary" id="ratingSummary">★ 0,0 / 5</span>
+                </div>
+                <form class="review-form" id="reviewForm">
+                    <h3 data-i18n="leaveReview">Palik atsiliepimą</h3>
+                    <div class="review-fields">
+                        <div>
+                            <label for="reviewName" data-i18n="yourName">Vardas</label>
+                            <input id="reviewName" name="name" maxlength="40" placeholder="Tavo vardas" required>
+                        </div>
+                        <div>
+                            <label for="reviewRating" data-i18n="rating">Įvertinimas</label>
+                            <select id="reviewRating" name="rating" required>
+                                <option value="5">★★★★★ – Puikiai</option>
+                                <option value="4">★★★★☆ – Gerai</option>
+                                <option value="3">★★★☆☆ – Vidutiniškai</option>
+                                <option value="2">★★☆☆☆ – Prastai</option>
+                                <option value="1">★☆☆☆☆ – Blogai</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="review-comment-field">
+                        <label for="reviewText" data-i18n="comment">Komentaras</label>
+                        <textarea id="reviewText" name="comment" maxlength="500" placeholder="Pasidalink savo nuomone..." required></textarea>
+                    </div>
+                    <button class="review-submit" type="submit" data-i18n="publishReview">Paskelbti atsiliepimą</button>
+                    <p class="form-message" id="reviewMessage" role="status"></p>
+                </form>
+                <div class="review-grid" id="reviewList" aria-live="polite"></div>
+            </section>
+
+            <section id="profileView" class="extra-view profile-view" aria-labelledby="profileTitle" hidden>
+                <div class="profile-heading-row">
+                    <div>
+                        <p class="restaurants-eyebrow" data-i18n="account">BOOMFOOD PASKYRA</p>
+                        <h2 id="profileTitle" data-i18n="profile">Profilis</h2>
+                    </div>
+                    <button class="secondary-button" id="openSettings" type="button" data-i18n="settings">Settings</button>
+                </div>
+                <section class="profile-card">
+                    <div class="profile-identity">
+                        <div class="profile-avatar-wrap">
+                            <span id="profileAvatarInitial" class="profile-avatar-initial">B</span>
+                            <img id="profileAvatarImage" alt="Profilio nuotrauka" hidden>
+                        </div>
+                        <div class="profile-identity-text">
+                            <h3 id="profileNameDisplay">BoomFood User</h3>
+                            <p id="profileLevelSummary" class="muted-note">1 lygis · 0 XP</p>
+                            <label class="upload-avatar-button" for="profilePictureInput" data-i18n="changePhoto">Pakeisti nuotrauką</label>
+                            <input id="profilePictureInput" type="file" accept="image/*" hidden>
+                        </div>
+                    </div>
+                    <div class="profile-edit-grid">
+                        <div>
+                            <label for="profileNameInput" data-i18n="profileName">Profilio vardas</label>
+                            <input id="profileNameInput" type="text" maxlength="30" minlength="2" placeholder="Tavo vardas">
+                            <small id="nameCooldown" class="field-hint">Vardą galima keisti kas 30 minučių.</small>
+                        </div>
+                        <button class="primary-button" id="saveProfileName" type="button" data-i18n="saveName">Išsaugoti vardą</button>
+                    </div>
+                    <p id="profileMessage" class="form-message" role="status"></p>
+                    <div class="profile-shortcuts">
+                        <button class="profile-favourites" id="favoritesButton" type="button">
+                            <span aria-hidden="true">♡</span><strong data-i18n="favourites">Mėgstamiausi</strong>
+                        </button>
+                        <div class="profile-balance-card">
+                            <span data-i18n="balance">Balansas</span>
+                            <strong id="profileBalance">0,00 €</strong>
+                        </div>
+                    </div>
+                </section>
+                <section class="profile-orders" aria-labelledby="profileOrdersTitle">
+                    <div class="history-heading">
+                        <h3 id="profileOrdersTitle" data-i18n="orderHistory">Užsakymų istorija</h3>
+                        <span id="historyCount" class="history-date">0 užsakymų</span>
+                    </div>
+                    <div id="historyList" class="history-list" aria-live="polite"></div>
+                </section>
+            </section>
+
+            <section id="settingsView" class="extra-view settings-view" aria-labelledby="settingsTitle" hidden>
+                <button class="text-back-button" id="settingsBackButton" type="button" data-i18n="backToProfile">← Grįžti į profilį</button>
+                <p class="restaurants-eyebrow" data-i18n="preferences">PREFERENCIJOS</p>
+                <h2 id="settingsTitle" data-i18n="settings">Settings</h2>
+                <section class="settings-card">
+                    <div>
+                        <h3 data-i18n="appearance">Išvaizda</h3>
+                        <p class="muted-note" data-i18n="themeHint">Pasirink šviesią arba tamsią temą.</p>
+                    </div>
+                    <div class="theme-options" role="group" aria-label="Tema">
+                        <button type="button" class="theme-option" data-theme-choice="light" id="lightThemeButton">☀️ <span data-i18n="lightMode">Šviesi</span></button>
+                        <button type="button" class="theme-option" data-theme-choice="dark" id="darkThemeButton">🌙 <span data-i18n="darkMode">Tamsi</span></button>
+                    </div>
+                </section>
+                <section class="settings-card danger-zone">
+                    <div>
+                        <h3 data-i18n="deleteAccount">Delete account</h3>
+                        <p class="muted-note" data-i18n="deleteAccountHint">Ištrins vietinius šios demonstracinės paskyros duomenis.</p>
+                    </div>
+                    <button class="danger-button" id="deleteAccountButton" type="button" data-i18n="deleteAccount">Ištrinti paskyrą</button>
+                </section>
+                <p class="settings-disclaimer" data-i18n="localDataNotice">Tai demonstracinė paskyra – duomenys saugomi tik šiame įrenginyje.</p>
+            </section>
+
+            <section id="aboutView" class="extra-view" aria-labelledby="aboutTitle" hidden>
+                <button class="text-back-button" id="aboutBackButton" type="button" data-i18n="backToRestaurants">← Visi restoranai</button>
+                <p class="restaurants-eyebrow">BOOMFOOD</p>
+                <h2 id="aboutTitle" data-i18n="aboutTitle">Apie BoomFood</h2>
+                <p data-i18n="aboutIntro">BoomFood yra demonstracinė maisto pristatymo platforma.</p>
+                <p data-i18n="aboutFeatures"></p>
+                <p class="settings-disclaimer" data-i18n="aboutNotice"></p>
+            </section>
+
+            <section id="levelView" class="extra-view level-view" aria-labelledby="levelTitle" hidden>
+                <div class="level-view-heading">
+                    <button class="level-back-button" id="levelBackButton" type="button" data-i18n="back">← Atgal</button>
+                    <div>
+                        <h2 id="levelTitle" data-i18n="levelCenterTitle">Lygių sistema</h2>
+                        <p class="muted-note" data-i18n="levelCenterHint">Kaupk XP už užsakymus, kelk lygius ir atrakink apdovanojimus.</p>
+                    </div>
+                </div>
+                <section class="level-overview" aria-label="Dabartinio lygio progresas">
+                    <div class="level-overview-main">
+                        <span class="level-overline">BOOMFOOD RANK</span>
+                        <div class="level-big-number" id="levelBig">1</div>
+                        <div class="level-current-caption" data-i18n="currentLevel">DABARTINIS LYGIS</div>
+                        <p id="levelNextText">Dar 100 XP iki kito lygio.</p>
+                    </div>
+                    <div class="level-overview-progress">
+                        <div class="level-progress-heading">
+                            <span data-i18n="progressToNext">Progresas iki kito lygio</span>
+                            <strong id="levelProgressText">0 / 100 XP</strong>
+                        </div>
+                        <div class="level-big-bar" role="progressbar" aria-label="XP progresas iki kito lygio" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="levelProgressBar">
+                            <div id="levelProgressFill"></div>
+                        </div>
+                        <div class="level-progress-foot">
+                            <span>0 XP</span>
+                            <span>100 XP</span>
+                        </div>
+                        <p class="level-howto" data-i18n="levelHowTo">Už pateiktą užsakymą gauni XP, o už pristatytą užsakymą – papildomų XP.</p>
+                    </div>
+                </section>
+                <div class="level-stats-grid">
+                    <article class="level-stat-card">
+                        <span data-i18n="totalXP">Iš viso sukaupta</span>
+                        <strong id="totalXP">0 XP</strong>
+                        <small data-i18n="allOrderXP">Visų užsakymų XP</small>
+                    </article>
+                    <article class="level-stat-card">
+                        <span data-i18n="walletBalance">Balansas</span>
+                        <strong id="rewardBalance">€0</strong>
+                        <small data-i18n="levelWalletHint">Lygio apdovanojimai pridedami prie balanso.</small>
+                    </article>
+                    <article class="level-stat-card">
+                        <span data-i18n="unlockedMilestones">Atrakinti milestone’ai</span>
+                        <strong id="milestoneCount">0</strong>
+                        <small data-i18n="milestoneHint">Kas 5 lygius – didesnis rewardas</small>
+                    </article>
+                </div>
+                <div class="reward-heading">
+                    <div>
+                        <h3 data-i18n="rewardPath">Apdovanojimų kelias</h3>
+                        <p class="muted-note" data-i18n="rewardPathHint">Kiekvienas naujas lygis suteikia demo piniginį apdovanojimą. Kas 5 lygius laukia didesnis milestone’as.</p>
+                    </div>
+                    <span class="reward-placeholder-tag">DEMO REWARDS</span>
+                </div>
+                <div class="reward-list" id="rewardList" aria-live="polite"></div>
+                <p class="level-disclaimer" data-i18n="demoBalanceNotice">Balansas yra demonstracinis ir saugomas šiame įrenginyje.</p>
+                <p class="level-disclaimer" id="xpSaveStatus" role="status">Pažanga išsaugoma automatiškai šiame įrenginyje.</p>
+            </section>
+        </main>
+
+        <div class="cart-overlay" id="cartOverlay" hidden>
+            <section class="cart-dialog" role="dialog" aria-modal="true" aria-labelledby="cartDialogTitle">
+                <div class="cart-dialog-heading">
+                    <div>
+                        <p class="cart-kicker">BOOMFOOD</p>
+                        <h2 id="cartDialogTitle" data-i18n="yourCart">Tavo krepšelis</h2>
+                    </div>
+                    <button class="cart-close" id="cartClose" type="button" aria-label="Uždaryti krepšelį">×</button>
+                </div>
+                <div id="cartItems" class="cart-items" aria-live="polite"></div>
+                <div class="cart-dialog-footer">
+                    <div class="cart-total-row">
+                        <span data-i18n="total">Iš viso</span>
+                        <strong id="cartTotal">0,00 €</strong>
+                    </div>
+                    <button class="big" id="order" disabled data-i18n="placeOrder">Pateikti užsakymą</button>
+                    <p class="cart-footnote" data-i18n="cartFootnote">Tai demonstracinis krepšelis – mokėjimas nevykdomas.</p>
+                </div>
+            </section>
+        </div>
+
+        <div class="delivery-overlay" id="deliveryOverlay" hidden>
+            <section class="delivery-screen" role="dialog" aria-modal="true" aria-labelledby="deliveryTitle" aria-describedby="deliveryNotice">
+                <div class="delivery-header">
+                    <div class="wrap">
+                        <button class="brand brand-home" type="button" data-home-button aria-label="BoomFood – grįžti į pagrindinį puslapį">
+                            <img class="brand-logo" src="images/boomfood-cyber.png" width="1200" height="150" alt="">
+                        </button>
+                        <button class="delivery-back" id="deliveryBack" type="button" data-i18n="backToMenu">← Grįžti į meniu</button>
+                    </div>
+                </div>
+                <div class="delivery-content">
+                    <div class="delivery-symbol" aria-hidden="true"><span class="brand-icon"></span></div>
+                    <p class="delivery-number" id="deliveryNumber"></p>
+                    <h2 id="deliveryTitle" tabindex="-1">Užsakymas priimtas</h2>
+                    <p class="delivery-subtitle" id="deliverySubtitle" role="status">Tavo užsakymas perduotas virtuvei.</p>
+                    <section class="panel delivery-panel" aria-labelledby="steps-title">
+                        <h3 id="steps-title">Užsakymo eiga</h3>
+                        <ol id="steps"></ol>
+                        <div class="delivery-total"><span>Užsakymo suma</span><strong id="deliveryTotal"></strong></div>
+                    </section>
+                    <button class="big delivery-finish" id="deliveryFinish" type="button" hidden data-i18n="backToMenu">Grįžti į meniu</button>
+                    <p class="delivery-notice" id="deliveryNotice" data-i18n="demoNotice">Tai simuliacija. Tikras maistas nebus pristatytas ir mokėti nereikia.</p>
+                </div>
+            </section>
+        </div>
+
+        <div class="app-toast" id="appToast" role="status" aria-live="polite" hidden></div>
+
+        <div class="level-up-overlay" id="levelUpOverlay" hidden>
+            <div class="level-up-card" role="status" aria-live="polite">
+                <div class="level-confetti" aria-hidden="true">
+                    <i></i><i></i><i></i><i></i><i></i><i></i>
+                    <i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+                <div class="level-up-sparkle" aria-hidden="true">✦</div>
+                <span class="level-up-kicker">LEVEL UP!</span>
+                <div class="level-up-number" id="levelUpNumber">2</div>
+                <h2>Naujas lygis pasiektas!</h2>
+                <p id="levelUpReward">Apdovanojimas pridėtas prie demo balanso.</p>
+                <button class="level-up-close" id="levelUpClose" type="button">Puiku!</button>
+            </div>
+        </div>
+
+        <script src="js/catalog.js"></script>
+        <script src="js/script.js"></script>
+        <script src="js/about.js"></script>
+    </body>
+</html>
